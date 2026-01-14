@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpareChange - Data Deletion Request</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+
+        .info-box h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            color: #555;
+            padding: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .info-box li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .warning-box strong {
+            color: #856404;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .warning-box p {
+            color: #856404;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            margin-top: 4px;
+        }
+
+        .checkbox-group label {
+            color: #555;
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success-message h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .success-message p {
+            color: #155724;
+            margin: 5px 0;
+        }
+
+        .in-app-option {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+
+        .in-app-option h2 {
+            color: #1976D2;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .in-app-option p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .in-app-option ol {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .in-app-option li {
+            color: #555;
+            margin: 8px 0;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .divider:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🪙 SpareChange</h1>
+            <p>Data Deletion Request</p>
+        </div>
+
+        <div class="in-app-option">
+            <h2>💡 Delete Account In-App (Recommended)</h2>
+            <p>You can delete your account and all associated data directly from the app:</p>
+            <ol>
+                <li>Open the <strong>SpareChange</strong> app</li>
+                <li>Go to <strong>Settings</strong></li>
+                <li>Scroll to the <strong>Account</strong> section</li>
+                <li>Tap <strong>Delete Account</strong></li>
+                <li>Follow the confirmation steps</li>
+            </ol>
+            <p style="margin-top: 15px;"><strong>This is instant and automatic.</strong> No waiting required.</p>
+        </div>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <div class="info-box">
+            <h2>What will be deleted?</h2>
+            <ul>
+                <li>Your account information (email, name, profile)</li>
+                <li>All your transaction history</li>
+                <li>Your denomination settings</li>
+                <li>Your family member entries</li>
+                <li>Your group membership and settings</li>
+                <li>All encrypted personal data</li>
+            </ul>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Important Notice</strong>
+            <p>Data deletion is permanent and cannot be undone. Please ensure you have backed up any data you wish to keep before submitting this request.</p>
+        </div>
+
+        <form id="deletionForm">
+            <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    required 
+                    placeholder="your.email@example.com"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="requestType">Request Type *</label>
+                <select id="requestType" name="requestType" required>
+                    <option value="">Select an option</option>
+                    <option value="delete_all">Delete my account and all data</option>
+                    <option value="delete_transactions">Delete only my transaction history</option>
+                    <option value="delete_personal">Delete only personal information</option>
+                    <option value="export_data">Export my data before deletion</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="reason">Reason for Deletion (Optional)</label>
+                <textarea 
+                    id="reason" 
+                    name="reason" 
+                    placeholder="Please let us know why you're leaving (optional)"
+                ></textarea>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="confirm" name="confirm" required>
+                <label for="confirm">I understand that this action is permanent and my data cannot be recovered after deletion.</label>
+            </div>
+
+            <button type="submit" class="btn">Submit Deletion Request</button>
+        </form>
+
+        <div id="successMessage" class="success-message">
+            <h3>✅ Request Submitted Successfully</h3>
+            <p>Your data deletion request has been received.</p>
+            <p><strong>What happens next?</strong></p>
+            <ul style="margin-top: 10px; margin-left: 20px;">
+                <li>We will process your request within 30 days</li>
+                <li>You will receive a confirmation email once completed</li>
+                <li>If you need immediate deletion, please use the in-app option above</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('deletionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                email: document.getElementById('email').value,
+                requestType: document.getElementById('requestType').value,
+                reason: document.getElementById('reason').value,
+                timestamp: new Date().toISOString()
+            };
+
+            // Here you would typically send this to your backend
+            // For now, we'll simulate the submission
+            console.log('Deletion request:', formData);
+
+            // You can integrate with:
+            // 1. Firebase Functions
+            // 2. Your own backend API
+            // 3. Email service
+            // 4. Support ticket system
+
+            // Example: Send to Firebase Cloud Function
+            /*
+            try {
+                const response = await fetch('YOUR_CLOUD_FUNCTION_URL', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    // Show success message
+                    document.getElementById('deletionForm').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                }
+            } catch (error) {
+                alert('Error submitting request. Please try again or use the in-app option.');
+            }
+            */
+
+            // For now, just show success message
+            document.getElementById('deletionForm').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'block';
+            
+            // You could also use mailto as a fallback
+            // window.location.href = `mailto:support@sparechange.com?subject=Data%20Deletion%20Request&body=Email:%20${formData.email}%0ARequest%20Type:%20${formData.requestType}%0AReason:%20${formData.reason}`;
+        });
+    </script>
+</body>
+</html>

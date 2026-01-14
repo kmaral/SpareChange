@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "350255525424",
+    "project_id": "spare-change-2a6e5",
+    "storage_bucket": "spare-change-2a6e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350255525424:android:0ac02461b6c06765a287f5",
+        "android_client_info": {
+          "package_name": "com.krudaya.spare_change"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "350255525424-c2iqjlcodducbv2o5pqd8ud2e8dt54m8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmkxy4T8BwKSxc3dkzZ2q7l-Aljd3klWI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "350255525424-c2iqjlcodducbv2o5pqd8ud2e8dt54m8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
