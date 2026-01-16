@@ -21,15 +21,17 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
 
   void _loadAd() {
     _bannerAd = AdMobService.createBannerAd()
-      ..load().then((_) {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
+      ..load()
+          .then((_) {
+            if (mounted) {
+              setState(() {
+                _isAdLoaded = true;
+              });
+            }
+          })
+          .catchError((error) {
+            print('Error loading banner ad: $error');
           });
-        }
-      }).catchError((error) {
-        print('Error loading banner ad: $error');
-      });
   }
 
   @override

@@ -83,7 +83,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (group == null && mounted) {
         final result = await Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const GroupSetupScreen()),
+          MaterialPageRoute(
+            builder: (context) {
+              final Widget screen = GroupSetupScreen();
+              return screen;
+            },
+          ),
         );
         if (result == true && mounted) {
           setState(() {}); // Refresh the screen

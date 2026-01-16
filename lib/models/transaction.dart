@@ -40,6 +40,9 @@ class CurrencyTransaction {
   @HiveField(10)
   final SyncStatus syncStatus;
 
+  @HiveField(12)
+  final String? groupId;
+
   CurrencyTransaction({
     required this.id,
     required this.userId,
@@ -53,6 +56,7 @@ class CurrencyTransaction {
     DateTime? timestamp,
     DateTime? lastModified,
     this.syncStatus = SyncStatus.pending,
+    this.groupId,
   }) : timestamp = timestamp ?? DateTime.now(),
        lastModified = lastModified ?? DateTime.now();
 
@@ -72,6 +76,7 @@ class CurrencyTransaction {
       'timestamp': Timestamp.fromDate(timestamp),
       'lastModified': Timestamp.fromDate(lastModified),
       'syncStatus': syncStatus.toString().split('.').last,
+      'groupId': groupId,
     };
   }
 
@@ -99,6 +104,7 @@ class CurrencyTransaction {
         (e) => e.toString().split('.').last == (json['syncStatus'] ?? 'synced'),
         orElse: () => SyncStatus.synced,
       ),
+      groupId: json['groupId'] as String?,
     );
   }
 

@@ -281,7 +281,12 @@ class AuthService {
     try {
       final encryption = EncryptionService();
       final user = currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print('Error creating group: No user logged in');
+        return null;
+      }
+
+      print('Creating group for user: ${user.uid}');
 
       final groupDoc = await _firestore.collection('groups').add({
         'name': encryption.encrypt(groupName),
@@ -292,15 +297,19 @@ class AuthService {
         'maxMembers': 6,
       });
 
+      print('Group created with ID: ${groupDoc.id}');
+
       // Update user's groupId (use set with merge to create if doesn't exist)
       await _firestore.collection('users').doc(user.uid).set({
         'groupId': groupDoc.id,
       }, SetOptions(merge: true));
 
+      print('User document updated with groupId');
       return groupDoc.id;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error creating group: $e');
-      return null;
+      print('Stack trace: $stackTrace');
+      rethrow; // Rethrow to see the error in the UI
     }
   }
 
@@ -386,6 +395,7 @@ class AuthService {
   // Get group members
   Future<List<Map<String, dynamic>>> getGroupMembers(String groupId) async {
     try {
+      final encryption = EncryptionService();
       final groupDoc = await _firestore.collection('groups').doc(groupId).get();
       if (!groupDoc.exists) return [];
 
@@ -400,7 +410,29 @@ class AuthService {
         if (!data.containsKey('uid')) {
           data['uid'] = doc.id;
         }
-        return data;
+
+        // Decrypt sensitive fields
+        final decryptedData = Map<String, dynamic>.from(data);
+        if (data['displayName'] != null) {
+          try {
+            decryptedData['displayName'] = encryption.decrypt(
+              data['displayName'],
+            );
+          } catch (e) {
+            print('Error decrypting displayName for ${doc.id}: $e');
+            decryptedData['displayName'] = 'User';
+          }
+        }
+        if (data['email'] != null) {
+          try {
+            decryptedData['email'] = encryption.decrypt(data['email']);
+          } catch (e) {
+            print('Error decrypting email for ${doc.id}: $e');
+            decryptedData['email'] = '';
+          }
+        }
+
+        return decryptedData;
       }).toList();
     } catch (e) {
       print('Error getting group members: $e');

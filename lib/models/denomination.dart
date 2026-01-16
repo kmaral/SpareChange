@@ -18,12 +18,16 @@ class Denomination {
   @HiveField(4)
   final DateTime createdAt;
 
+  @HiveField(5)
+  final String? groupId;
+
   Denomination({
     required this.id,
     required this.value,
     required this.type,
     this.isActive = true,
     DateTime? createdAt,
+    this.groupId,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Convert to JSON for Firestore
@@ -34,6 +38,7 @@ class Denomination {
       'type': type.toString().split('.').last,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
+      'groupId': groupId,
     };
   }
 
@@ -47,6 +52,7 @@ class Denomination {
       ),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
+      groupId: json['groupId'] as String?,
     );
   }
 
@@ -57,6 +63,7 @@ class Denomination {
     DenominationType? type,
     bool? isActive,
     DateTime? createdAt,
+    String? groupId,
   }) {
     return Denomination(
       id: id ?? this.id,
@@ -64,6 +71,7 @@ class Denomination {
       type: type ?? this.type,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      groupId: groupId ?? this.groupId,
     );
   }
 

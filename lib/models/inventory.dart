@@ -8,9 +8,15 @@ class Inventory {
   @HiveField(1)
   final DateTime lastUpdated;
 
-  Inventory({Map<String, int>? denominationCounts, DateTime? lastUpdated})
-    : denominationCounts = denominationCounts ?? {},
-      lastUpdated = lastUpdated ?? DateTime.now();
+  @HiveField(2)
+  final String? groupId;
+
+  Inventory({
+    Map<String, int>? denominationCounts,
+    DateTime? lastUpdated,
+    this.groupId,
+  }) : denominationCounts = denominationCounts ?? {},
+       lastUpdated = lastUpdated ?? DateTime.now();
 
   // Get count for a specific denomination ID
   int getCount(String denominationId) {
@@ -28,6 +34,7 @@ class Inventory {
     return Inventory(
       denominationCounts: newCounts,
       lastUpdated: DateTime.now(),
+      groupId: groupId,
     );
   }
 
@@ -59,6 +66,7 @@ class Inventory {
     return {
       'denominationCounts': denominationCounts,
       'lastUpdated': lastUpdated.toIso8601String(),
+      'groupId': groupId,
     };
   }
 
@@ -73,6 +81,7 @@ class Inventory {
       lastUpdated: json['lastUpdated'] != null
           ? DateTime.parse(json['lastUpdated'] as String)
           : DateTime.now(),
+      groupId: json['groupId'] as String?,
     );
   }
 
@@ -80,15 +89,17 @@ class Inventory {
   Inventory copyWith({
     Map<String, int>? denominationCounts,
     DateTime? lastUpdated,
+    String? groupId,
   }) {
     return Inventory(
       denominationCounts: denominationCounts ?? this.denominationCounts,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      groupId: groupId ?? this.groupId,
     );
   }
 
   @override
   String toString() {
-    return 'Inventory(counts: ${denominationCounts.length} denominations, lastUpdated: $lastUpdated)';
+    return 'Inventory(counts: ${denominationCounts.length} denominations, lastUpdated: $lastUpdated, groupId: $groupId)';
   }
 }

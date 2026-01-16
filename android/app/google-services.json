@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "350255525424-dh7pd4tvigd50g7an6tkq69m1g1kdvf3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.krudaya.spare_change",
+            "certificate_hash": "4381d9bbcbaaae4102d4b9cd388137d3f2866043"
+          }
+        },
+        {
+          "client_id": "350255525424-ds49o55s4iuhfkoac47ss7748k9s7fdq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.krudaya.spare_change",
+            "certificate_hash": "4d3b593707d18168f04699b48dbc60439d2d8100"
+          }
+        },
+        {
           "client_id": "350255525424-c2iqjlcodducbv2o5pqd8ud2e8dt54m8.apps.googleusercontent.com",
           "client_type": 3
         }

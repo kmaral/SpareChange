@@ -63,32 +63,64 @@ class MyApp extends StatelessWidget {
         syncService: syncService,
         prefs: prefs,
       ),
-      child: MaterialApp(
-        title: 'Spare Change',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-          cardTheme: const CardThemeData(elevation: 2),
-          floatingActionButtonTheme: FloatingActionButtonThemeData(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      child: Consumer<AppProvider>(
+        builder: (context, provider, _) {
+          final themeMode = provider.themeMode == 'Light'
+              ? ThemeMode.light
+              : provider.themeMode == 'Dark'
+              ? ThemeMode.dark
+              : ThemeMode.system;
+
+          return MaterialApp(
+            title: 'Spare Change',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeMode,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.green,
+                brightness: Brightness.light,
+              ),
+              useMaterial3: true,
+              appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
+              cardTheme: const CardThemeData(elevation: 2),
+              floatingActionButtonTheme: FloatingActionButtonThemeData(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
             ),
-          ),
-        ),
-        home: const AuthWrapper(),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.green,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+              appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
+              cardTheme: const CardThemeData(elevation: 2),
+              floatingActionButtonTheme: FloatingActionButtonThemeData(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            home: const AuthWrapper(),
+          );
+        },
       ),
     );
   }
 }
 
 // Separate widget to handle auth state
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  String? _currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +131,26 @@ class AuthWrapper extends StatelessWidget {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
+        }
+
+        // Check if user has changed
+        final newUserId = snapshot.data?.uid;
+        if (newUserId != _currentUserId) {
+          // User has changed (either signed in or signed out)
+          _currentUserId = newUserId;
+
+          if (newUserId != null) {
+            // New user signed in - reinitialize AppProvider
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                final provider = Provider.of<AppProvider>(
+                  context,
+                  listen: false,
+                );
+                provider.initializeForNewUser();
+              }
+            });
+          }
         }
 
         if (snapshot.hasData) {
@@ -114,7 +166,8 @@ class AuthWrapper extends StatelessWidget {
 
               if (groupSnapshot.data == null) {
                 // User doesn't have a group, show setup screen
-                return const GroupSetupScreen();
+                final Widget screen = GroupSetupScreen();
+                return screen;
               }
 
               // User has a group, show home screen

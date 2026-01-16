@@ -106,7 +106,6 @@ class DenominationChart extends StatelessWidget {
                 children: sortedEntries.map((entry) {
                   final denomination = entry.key;
                   final count = entry.value;
-                  final value = denomination.value * count;
 
                   // Determine background colors for specific notes
                   Color? noteColor;

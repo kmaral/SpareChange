@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
 import '../services/auth_service.dart';
 import '../providers/app_provider.dart';
 import 'group_setup_screen.dart';
@@ -17,7 +16,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _authService = AuthService();
-  String _selectedTheme = 'System';
   String _selectedCurrency = 'INR (₹)';
   String _selectedDateFormat = 'DD/MM/YYYY';
   String _selectedNumberFormat = '1,234.56';
@@ -61,7 +59,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirm == true && mounted) {
+      // Reset AppProvider data before signing out
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      await provider.resetForNewUser();
+
+      // Sign out from Firebase
       await _authService.signOut();
+
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -374,102 +378,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _exportUserData() async {
-    // Show loading dialog
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Exporting your data...'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Export data
-    final data = await _authService.exportUserData();
-
-    // Close loading dialog
-    if (mounted) {
-      Navigator.pop(context);
-    }
-
-    if (data != null && mounted) {
-      // Convert to JSON
-      final jsonString = const JsonEncoder.withIndent('  ').convert(data);
-
-      // Copy to clipboard
-      await Clipboard.setData(ClipboardData(text: jsonString));
-
-      // Show success dialog with data preview
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('✅ Data Exported'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your data has been copied to the clipboard.',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                const Text('Summary:'),
-                const SizedBox(height: 8),
-                Text(
-                  '• Transactions: ${data['statistics']?['totalTransactions'] ?? 0}',
-                ),
-                Text(
-                  '• Family Members: ${data['statistics']?['totalFamilyMembers'] ?? 0}',
-                ),
-                Text('• Exported: ${data['exportedAt'] ?? 'Unknown'}'),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'You can now paste this data into a text file for your records.',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to export data. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   Future<void> _requestDataDeletion() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -694,7 +602,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const GroupSetupScreen(),
+                          builder: (context) {
+                            final Widget screen = GroupSetupScreen();
+                            return screen;
+                          },
                         ),
                       );
                       if (result == true) {
@@ -717,13 +628,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Privacy & Data',
               icon: Icons.privacy_tip,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text('Export My Data'),
-                  subtitle: const Text('Download a copy of your data'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _exportUserData,
-                ),
                 ListTile(
                   leading: const Icon(
                     Icons.delete_outline,
@@ -776,12 +680,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Appearance',
             icon: Icons.palette,
             children: [
-              ListTile(
-                leading: const Icon(Icons.brightness_6),
-                title: const Text('Theme'),
-                subtitle: Text(_selectedTheme),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showThemeDialog(),
+              Consumer<AppProvider>(
+                builder: (context, provider, _) => ListTile(
+                  leading: const Icon(Icons.brightness_6),
+                  title: const Text('Theme'),
+                  subtitle: Text(provider.themeMode),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showThemeDialog(),
+                ),
               ),
             ],
           ),
@@ -840,6 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showThemeDialog() {
+    final provider = Provider.of<AppProvider>(context, listen: false);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -850,27 +757,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             RadioListTile<String>(
               title: const Text('Light'),
               value: 'Light',
-              groupValue: _selectedTheme,
+              groupValue: provider.themeMode,
               onChanged: (value) {
-                setState(() => _selectedTheme = value!);
+                provider.setThemeMode(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('Dark'),
               value: 'Dark',
-              groupValue: _selectedTheme,
+              groupValue: provider.themeMode,
               onChanged: (value) {
-                setState(() => _selectedTheme = value!);
+                provider.setThemeMode(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('System'),
               value: 'System',
-              groupValue: _selectedTheme,
+              groupValue: provider.themeMode,
               onChanged: (value) {
-                setState(() => _selectedTheme = value!);
+                provider.setThemeMode(value!);
                 Navigator.pop(context);
               },
             ),

@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
 import '../models/user.dart';
 import '../models/denomination.dart';
 import '../models/transaction.dart';
 import '../models/inventory.dart';
 import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
+import '../services/auth_service.dart';
 
 class AppProvider with ChangeNotifier {
   final FirestoreService _firestoreService;
@@ -21,9 +23,18 @@ class AppProvider with ChangeNotifier {
   User? _selectedUser;
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
+  String? _groupId;
+  bool _isGroupIdLoaded = false;
 
   bool _isLoading = false;
   String? _error;
+  String _themeMode = 'System';
+
+  // Stream subscriptions
+  StreamSubscription? _usersSubscription;
+  StreamSubscription? _denominationsSubscription;
+  StreamSubscription? _transactionsSubscription;
+  StreamSubscription? _inventorySubscription;
 
   AppProvider({
     required FirestoreService firestoreService,
@@ -33,7 +44,8 @@ class AppProvider with ChangeNotifier {
        _syncService = syncService,
        _prefs = prefs {
     _loadSelectedUser();
-    _subscribeToStreams();
+    _loadThemeMode();
+    _initializeGroupId();
   }
 
   // Getters
@@ -50,6 +62,152 @@ class AppProvider with ChangeNotifier {
   String? get error => _error;
   bool get isOnline => _syncService.isOnline;
   int get pendingSyncCount => _syncService.pendingCount;
+  String get themeMode => _themeMode;
+  String? get groupId => _groupId;
+
+  // Reload groupId (useful after creating/joining a group)
+  Future<void> reloadGroupId() async {
+    try {
+      print('AppProvider: Reloading groupId...');
+      final authService = AuthService();
+      final group = await authService.getUserGroup();
+      print('AppProvider: getUserGroup returned: $group');
+      _groupId = group?['id'];
+      _isGroupIdLoaded = true;
+      print('AppProvider: Reloaded groupId = $_groupId');
+
+      if (_groupId == null) {
+        print('AppProvider: WARNING - groupId is still null after reload!');
+        print('AppProvider: Group data: $group');
+      } else {
+        // Cancel old subscriptions and restart with new groupId
+        await _cancelSubscriptions();
+        _subscribeToStreams();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('AppProvider: Error reloading groupId: $e');
+    }
+  }
+
+  // Reset all data when user signs out (clear cached data for previous user)
+  Future<void> resetForNewUser() async {
+    try {
+      print('AppProvider: Resetting data for user sign out...');
+
+      // Cancel all subscriptions
+      await _cancelSubscriptions();
+
+      // Clear all data
+      _users = [];
+      _denominations = [];
+      _transactions = [];
+      _inventory = Inventory();
+      _selectedUser = null;
+      _filterStartDate = null;
+      _filterEndDate = null;
+      _groupId = null;
+      _isGroupIdLoaded = false;
+      _error = null;
+
+      // Clear saved selected user from SharedPreferences
+      await _prefs.remove('selected_user_id');
+
+      print('AppProvider: Data reset complete');
+      notifyListeners();
+    } catch (e) {
+      print('AppProvider: Error resetting data: $e');
+    }
+  }
+
+  // Initialize data for new user after sign in
+  Future<void> initializeForNewUser() async {
+    try {
+      print('AppProvider: Initializing data for new user...');
+
+      // Reset data first
+      await resetForNewUser();
+
+      // Reload groupId and subscribe to streams
+      await _initializeGroupId();
+
+      print('AppProvider: Initialization complete');
+    } catch (e) {
+      print('AppProvider: Error initializing for new user: $e');
+    }
+  }
+
+  Future<void> _initializeGroupId() async {
+    try {
+      print('AppProvider: Loading groupId...');
+      final authService = AuthService();
+      final group = await authService.getUserGroup();
+      print('AppProvider: getUserGroup returned: $group');
+      _groupId = group?['id'];
+      _isGroupIdLoaded = true;
+      print('AppProvider: Loaded groupId = $_groupId');
+      print('AppProvider: _isGroupIdLoaded = $_isGroupIdLoaded');
+
+      if (_groupId == null) {
+        print(
+          'AppProvider: WARNING - groupId is null! User may not be in a group.',
+        );
+        print('AppProvider: Group data: $group');
+      }
+
+      // Only subscribe after groupId is loaded
+      _subscribeToStreams();
+      notifyListeners();
+    } catch (e) {
+      print('AppProvider: Error loading groupId: $e');
+      print('AppProvider: Stack trace: ${StackTrace.current}');
+      _isGroupIdLoaded = true;
+      // Subscribe anyway to avoid blocking the app
+      _subscribeToStreams();
+      notifyListeners();
+    }
+  }
+
+  // Ensure groupId is loaded before operations
+  Future<void> _ensureGroupIdLoaded() async {
+    if (!_isGroupIdLoaded) {
+      print('AppProvider: Waiting for groupId to load...');
+      // Wait for groupId to be loaded (with timeout)
+      int attempts = 0;
+      while (!_isGroupIdLoaded && attempts < 50) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      if (!_isGroupIdLoaded) {
+        print('AppProvider: Timeout waiting for groupId');
+        throw Exception('System is initializing. Please wait and try again.');
+      }
+    }
+
+    if (_groupId == null) {
+      print(
+        'AppProvider: ERROR - GroupId is null! User must create or join a group.',
+      );
+      throw Exception(
+        'You must create or join a group before performing this action.',
+      );
+    }
+
+    print('AppProvider: GroupId verified: $_groupId');
+  }
+
+  void _loadThemeMode() {
+    _themeMode = _prefs.getString('themeMode') ?? 'System';
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(String mode) async {
+    _themeMode = mode;
+    await _prefs.setString('themeMode', mode);
+    notifyListeners();
+  }
 
   // ===== USER OPERATIONS =====
 
@@ -136,6 +294,11 @@ class AppProvider with ChangeNotifier {
   Future<void> addDenomination(double value, DenominationType type) async {
     _setLoading(true);
     try {
+      // Ensure groupId is loaded
+      await _ensureGroupIdLoaded();
+
+      print('AppProvider: Adding denomination with groupId = $_groupId');
+
       // Check if denomination with this value already exists
       final exists = _denominations.any((d) => d.value == value);
       if (exists) {
@@ -149,14 +312,21 @@ class AppProvider with ChangeNotifier {
         value: value,
         type: type,
         isActive: true,
+        groupId: _groupId,
+      );
+
+      print(
+        'AppProvider: Denomination created with groupId = ${denomination.groupId}',
       );
 
       if (_syncService.isOnline) {
         await _firestoreService.addDenomination(denomination);
+        print('AppProvider: Denomination saved to Firestore');
       } else {
         _setError('Cannot add denomination while offline');
       }
     } catch (e) {
+      print('AppProvider: Error adding denomination: $e');
       _setError('Failed to add denomination: $e');
     } finally {
       _setLoading(false);
@@ -213,6 +383,11 @@ class AppProvider with ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
+      // Ensure groupId is loaded
+      await _ensureGroupIdLoaded();
+
+      print('AppProvider: Adding transaction with groupId = $_groupId');
+
       final transaction = CurrencyTransaction(
         id: const Uuid().v4(),
         userId: user.id,
@@ -228,13 +403,20 @@ class AppProvider with ChangeNotifier {
         syncStatus: _syncService.isOnline
             ? SyncStatus.synced
             : SyncStatus.pending,
+        groupId: _groupId,
+      );
+
+      print(
+        'AppProvider: Transaction created with groupId = ${transaction.groupId}',
       );
 
       if (_syncService.isOnline) {
         await _firestoreService.addTransactionAndUpdateInventory(
           transaction,
           denomination.id,
+          groupId: _groupId,
         );
+        print('AppProvider: Transaction saved to Firestore');
       } else {
         // Queue for later sync
         await _syncService.queueTransaction(transaction);
@@ -244,6 +426,7 @@ class AppProvider with ChangeNotifier {
 
       _clearError();
     } catch (e) {
+      print('AppProvider: Error adding transaction: $e');
       _setError('Failed to add transaction: $e');
     } finally {
       _setLoading(false);
@@ -275,7 +458,9 @@ class AppProvider with ChangeNotifier {
       if (_syncService.isOnline) {
         await _firestoreService.updateTransaction(updated);
         // Recalculate inventory after edit
-        await _firestoreService.recalculateInventoryFromTransactions();
+        await _firestoreService.recalculateInventoryFromTransactions(
+          groupId: _groupId,
+        );
       } else {
         _setError('Cannot edit transaction while offline');
       }
@@ -294,7 +479,9 @@ class AppProvider with ChangeNotifier {
       if (_syncService.isOnline) {
         await _firestoreService.deleteTransaction(transaction.id);
         // Recalculate inventory after deletion
-        await _firestoreService.recalculateInventoryFromTransactions();
+        await _firestoreService.recalculateInventoryFromTransactions(
+          groupId: _groupId,
+        );
       } else {
         _setError('Cannot delete transaction while offline');
       }
@@ -322,8 +509,11 @@ class AppProvider with ChangeNotifier {
         await _firestoreService.deleteTransaction(transaction.id);
       }
 
-      // Reset inventory to zero
-      await _firestoreService.updateInventory(Inventory());
+      // Reset inventory to zero with groupId
+      await _firestoreService.updateInventory(
+        Inventory(groupId: _groupId),
+        groupId: _groupId,
+      );
 
       _clearError();
       _setLoading(false);
@@ -339,7 +529,9 @@ class AppProvider with ChangeNotifier {
   Future<void> recalculateInventory() async {
     try {
       if (_syncService.isOnline) {
-        await _firestoreService.recalculateInventoryFromTransactions();
+        await _firestoreService.recalculateInventoryFromTransactions(
+          groupId: _groupId,
+        );
         _clearError();
       }
     } catch (e) {
@@ -401,8 +593,17 @@ class AppProvider with ChangeNotifier {
 
   // ===== PRIVATE METHODS =====
 
+  Future<void> _cancelSubscriptions() async {
+    await _usersSubscription?.cancel();
+    await _denominationsSubscription?.cancel();
+    await _transactionsSubscription?.cancel();
+    await _inventorySubscription?.cancel();
+  }
+
   void _subscribeToStreams() {
-    _firestoreService.streamUsers().listen((users) {
+    print('AppProvider: Subscribing to streams with groupId = $_groupId');
+
+    _usersSubscription = _firestoreService.streamUsers().listen((users) {
       _users = users;
       // Set selected user if it was saved
       if (_selectedUser == null) {
@@ -419,25 +620,37 @@ class AppProvider with ChangeNotifier {
       notifyListeners();
     });
 
-    _firestoreService.streamDenominations().listen((denominations) {
-      _denominations = denominations;
-      notifyListeners();
-    });
+    _denominationsSubscription = _firestoreService
+        .streamDenominations(groupId: _groupId)
+        .listen((denominations) {
+          print(
+            'AppProvider: Received ${denominations.length} denominations for groupId $_groupId',
+          );
+          _denominations = denominations;
+          notifyListeners();
+        });
 
-    _firestoreService
+    _transactionsSubscription = _firestoreService
         .streamTransactions(
           startDate: _filterStartDate,
           endDate: _filterEndDate,
+          groupId: _groupId,
         )
         .listen((transactions) {
+          print(
+            'AppProvider: Received ${transactions.length} transactions for groupId $_groupId',
+          );
           _transactions = transactions;
           notifyListeners();
         });
 
-    _firestoreService.streamInventory().listen((inventory) {
-      _inventory = inventory;
-      notifyListeners();
-    });
+    _inventorySubscription = _firestoreService
+        .streamInventory(groupId: _groupId)
+        .listen((inventory) {
+          print('AppProvider: Received inventory for groupId $_groupId');
+          _inventory = inventory;
+          notifyListeners();
+        });
   }
 
   void _setLoading(bool loading) {
@@ -459,5 +672,11 @@ class AppProvider with ChangeNotifier {
   Future<void> syncNow() async {
     await _syncService.syncPendingTransactions();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _cancelSubscriptions();
+    super.dispose();
   }
 }
