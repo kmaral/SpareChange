@@ -9,12 +9,12 @@ class Inventory {
   final DateTime lastUpdated;
 
   @HiveField(2)
-  final String? groupId;
+  final String groupId;
 
   Inventory({
     Map<String, int>? denominationCounts,
     DateTime? lastUpdated,
-    this.groupId,
+    required this.groupId,
   }) : denominationCounts = denominationCounts ?? {},
        lastUpdated = lastUpdated ?? DateTime.now();
 
@@ -75,13 +75,18 @@ class Inventory {
     final countsMap = json['denominationCounts'] as Map<String, dynamic>?;
     final counts =
         countsMap?.map((key, value) => MapEntry(key, value as int)) ?? {};
+    final groupId = json['groupId'] as String?;
+
+    if (groupId == null || groupId.isEmpty) {
+      throw ArgumentError('Inventory must have a valid groupId');
+    }
 
     return Inventory(
       denominationCounts: counts,
       lastUpdated: json['lastUpdated'] != null
           ? DateTime.parse(json['lastUpdated'] as String)
           : DateTime.now(),
-      groupId: json['groupId'] as String?,
+      groupId: groupId,
     );
   }
 

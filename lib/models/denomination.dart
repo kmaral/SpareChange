@@ -19,7 +19,7 @@ class Denomination {
   final DateTime createdAt;
 
   @HiveField(5)
-  final String? groupId;
+  final String groupId;
 
   Denomination({
     required this.id,
@@ -27,7 +27,7 @@ class Denomination {
     required this.type,
     this.isActive = true,
     DateTime? createdAt,
-    this.groupId,
+    required this.groupId,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Convert to JSON for Firestore
@@ -44,6 +44,11 @@ class Denomination {
 
   // Create from Firestore document
   factory Denomination.fromJson(Map<String, dynamic> json) {
+    final groupId = json['groupId'] as String?;
+    if (groupId == null || groupId.isEmpty) {
+      throw ArgumentError('Denomination must have a valid groupId');
+    }
+
     return Denomination(
       id: json['id'] as String,
       value: (json['value'] as num).toDouble(),
@@ -52,7 +57,7 @@ class Denomination {
       ),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
-      groupId: json['groupId'] as String?,
+      groupId: groupId,
     );
   }
 

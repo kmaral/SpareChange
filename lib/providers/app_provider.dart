@@ -18,7 +18,7 @@ class AppProvider with ChangeNotifier {
   List<User> _users = [];
   List<Denomination> _denominations = [];
   List<CurrencyTransaction> _transactions = [];
-  Inventory _inventory = Inventory();
+  Inventory? _inventory;
 
   User? _selectedUser;
   DateTime? _filterStartDate;
@@ -54,7 +54,8 @@ class AppProvider with ChangeNotifier {
   List<Denomination> get activeDenominations =>
       _denominations.where((d) => d.isActive).toList();
   List<CurrencyTransaction> get transactions => _transactions;
-  Inventory get inventory => _inventory;
+  Inventory get inventory =>
+      _inventory ?? Inventory(groupId: _groupId ?? 'unknown');
   User? get selectedUser => _selectedUser;
   DateTime? get filterStartDate => _filterStartDate;
   DateTime? get filterEndDate => _filterEndDate;
@@ -103,7 +104,7 @@ class AppProvider with ChangeNotifier {
       _users = [];
       _denominations = [];
       _transactions = [];
-      _inventory = Inventory();
+      _inventory = null;
       _selectedUser = null;
       _filterStartDate = null;
       _filterEndDate = null;
@@ -312,7 +313,7 @@ class AppProvider with ChangeNotifier {
         value: value,
         type: type,
         isActive: true,
-        groupId: _groupId,
+        groupId: _groupId!,
       );
 
       print(
@@ -403,7 +404,7 @@ class AppProvider with ChangeNotifier {
         syncStatus: _syncService.isOnline
             ? SyncStatus.synced
             : SyncStatus.pending,
-        groupId: _groupId,
+        groupId: _groupId!,
       );
 
       print(
@@ -414,7 +415,7 @@ class AppProvider with ChangeNotifier {
         await _firestoreService.addTransactionAndUpdateInventory(
           transaction,
           denomination.id,
-          groupId: _groupId,
+          groupId: _groupId!,
         );
         print('AppProvider: Transaction saved to Firestore');
       } else {
@@ -459,7 +460,7 @@ class AppProvider with ChangeNotifier {
         await _firestoreService.updateTransaction(updated);
         // Recalculate inventory after edit
         await _firestoreService.recalculateInventoryFromTransactions(
-          groupId: _groupId,
+          groupId: _groupId!,
         );
       } else {
         _setError('Cannot edit transaction while offline');
@@ -480,7 +481,7 @@ class AppProvider with ChangeNotifier {
         await _firestoreService.deleteTransaction(transaction.id);
         // Recalculate inventory after deletion
         await _firestoreService.recalculateInventoryFromTransactions(
-          groupId: _groupId,
+          groupId: _groupId!,
         );
       } else {
         _setError('Cannot delete transaction while offline');
@@ -511,8 +512,8 @@ class AppProvider with ChangeNotifier {
 
       // Reset inventory to zero with groupId
       await _firestoreService.updateInventory(
-        Inventory(groupId: _groupId),
-        groupId: _groupId,
+        Inventory(groupId: _groupId!),
+        groupId: _groupId!,
       );
 
       _clearError();
@@ -528,9 +529,11 @@ class AppProvider with ChangeNotifier {
   // Recalculate inventory from all transactions
   Future<void> recalculateInventory() async {
     try {
+      await _ensureGroupIdLoaded();
+
       if (_syncService.isOnline) {
         await _firestoreService.recalculateInventoryFromTransactions(
-          groupId: _groupId,
+          groupId: _groupId!,
         );
         _clearError();
       }
@@ -577,13 +580,15 @@ class AppProvider with ChangeNotifier {
 
   double getTotalBalance() {
     final denominationValues = {for (var d in _denominations) d.id: d.value};
-    return _inventory.calculateTotalValue(denominationValues);
+    return (_inventory ?? Inventory(groupId: _groupId ?? 'unknown'))
+        .calculateTotalValue(denominationValues);
   }
 
   Map<Denomination, int> getDenominationBreakdown() {
     final breakdown = <Denomination, int>{};
-    for (var denomination in _denominations) {
-      final count = _inventory.getCount(denomination.id);
+    final inventory = _inventory ?? Inventory(groupId: _groupId ?? 'unknown');
+    for (final denomination in _denominations) {
+      final count = inventory.getCount(denomination.id);
       if (count > 0) {
         breakdown[denomination] = count;
       }
@@ -603,6 +608,14 @@ class AppProvider with ChangeNotifier {
   void _subscribeToStreams() {
     print('AppProvider: Subscribing to streams with groupId = $_groupId');
 
+    // Only subscribe to group-related streams if groupId is available
+    if (_groupId == null || _groupId!.isEmpty) {
+      print(
+        'AppProvider: WARNING - Cannot subscribe to streams without valid groupId',
+      );
+      return;
+    }
+
     _usersSubscription = _firestoreService.streamUsers().listen((users) {
       _users = users;
       // Set selected user if it was saved
@@ -621,7 +634,7 @@ class AppProvider with ChangeNotifier {
     });
 
     _denominationsSubscription = _firestoreService
-        .streamDenominations(groupId: _groupId)
+        .streamDenominations(groupId: _groupId!)
         .listen((denominations) {
           print(
             'AppProvider: Received ${denominations.length} denominations for groupId $_groupId',
@@ -634,7 +647,7 @@ class AppProvider with ChangeNotifier {
         .streamTransactions(
           startDate: _filterStartDate,
           endDate: _filterEndDate,
-          groupId: _groupId,
+          groupId: _groupId!,
         )
         .listen((transactions) {
           print(
@@ -645,7 +658,7 @@ class AppProvider with ChangeNotifier {
         });
 
     _inventorySubscription = _firestoreService
-        .streamInventory(groupId: _groupId)
+        .streamInventory(groupId: _groupId!)
         .listen((inventory) {
           print('AppProvider: Received inventory for groupId $_groupId');
           _inventory = inventory;

@@ -41,7 +41,7 @@ class CurrencyTransaction {
   final SyncStatus syncStatus;
 
   @HiveField(12)
-  final String? groupId;
+  final String groupId;
 
   CurrencyTransaction({
     required this.id,
@@ -56,7 +56,7 @@ class CurrencyTransaction {
     DateTime? timestamp,
     DateTime? lastModified,
     this.syncStatus = SyncStatus.pending,
-    this.groupId,
+    required this.groupId,
   }) : timestamp = timestamp ?? DateTime.now(),
        lastModified = lastModified ?? DateTime.now();
 
@@ -85,6 +85,11 @@ class CurrencyTransaction {
     final encryption = EncryptionService();
     final encryptedUserName = json['userName'] as String;
     final encryptedReason = json['reason'] as String?;
+    final groupId = json['groupId'] as String?;
+
+    if (groupId == null || groupId.isEmpty) {
+      throw ArgumentError('Transaction must have a valid groupId');
+    }
 
     return CurrencyTransaction(
       id: json['id'] as String,
@@ -104,7 +109,7 @@ class CurrencyTransaction {
         (e) => e.toString().split('.').last == (json['syncStatus'] ?? 'synced'),
         orElse: () => SyncStatus.synced,
       ),
-      groupId: json['groupId'] as String?,
+      groupId: groupId,
     );
   }
 
@@ -122,6 +127,7 @@ class CurrencyTransaction {
     DateTime? timestamp,
     DateTime? lastModified,
     SyncStatus? syncStatus,
+    String? groupId,
   }) {
     return CurrencyTransaction(
       id: id ?? this.id,
@@ -136,6 +142,7 @@ class CurrencyTransaction {
       timestamp: timestamp ?? this.timestamp,
       lastModified: lastModified ?? this.lastModified,
       syncStatus: syncStatus ?? this.syncStatus,
+      groupId: groupId ?? this.groupId,
     );
   }
 

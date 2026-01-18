@@ -172,6 +172,7 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
       timestamp: fields[8] as DateTime,
       lastModified: fields[9] as DateTime,
       syncStatus: fields[10] as SyncStatus,
+      groupId: fields[12] as String? ?? 'unknown',
     );
   }
 

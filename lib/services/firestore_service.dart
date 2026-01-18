@@ -23,18 +23,23 @@ class FirestoreService {
       _firestore.collection('transactions');
 
   // Get group-specific inventory
-  DocumentReference _getInventoryRef(String? groupId) {
-    return _firestore.collection('inventory').doc(groupId ?? 'default');
+  DocumentReference _getInventoryRef(String groupId) {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+    return _firestore.collection('inventory').doc(groupId);
   }
 
   // ===== DENOMINATION OPERATIONS =====
 
-  Stream<List<Denomination>> streamDenominations({String? groupId}) {
-    Query query = _denominations.orderBy('value', descending: false);
-
-    if (groupId != null) {
-      query = query.where('groupId', isEqualTo: groupId);
+  Stream<List<Denomination>> streamDenominations({required String groupId}) {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
     }
+
+    Query query = _denominations
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('value', descending: false);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -106,13 +111,15 @@ class FirestoreService {
   Stream<List<CurrencyTransaction>> streamTransactions({
     DateTime? startDate,
     DateTime? endDate,
-    String? groupId,
+    required String groupId,
   }) {
-    Query query = _transactions.orderBy('timestamp', descending: true);
-
-    if (groupId != null) {
-      query = query.where('groupId', isEqualTo: groupId);
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
     }
+
+    Query query = _transactions
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('timestamp', descending: true);
 
     if (startDate != null) {
       query = query.where(
@@ -142,13 +149,15 @@ class FirestoreService {
   }
 
   Future<List<CurrencyTransaction>> getAllTransactions({
-    String? groupId,
+    required String groupId,
   }) async {
-    Query query = _transactions.orderBy('timestamp', descending: false);
-
-    if (groupId != null) {
-      query = query.where('groupId', isEqualTo: groupId);
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
     }
+
+    Query query = _transactions
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('timestamp', descending: false);
 
     final snapshot = await query.get();
     return snapshot.docs
@@ -176,7 +185,11 @@ class FirestoreService {
 
   // ===== INVENTORY OPERATIONS =====
 
-  Stream<Inventory> streamInventory({String? groupId}) {
+  Stream<Inventory> streamInventory({required String groupId}) {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+
     return _getInventoryRef(groupId).snapshots().map((snapshot) {
       if (!snapshot.exists) {
         return Inventory(groupId: groupId);
@@ -185,7 +198,11 @@ class FirestoreService {
     });
   }
 
-  Future<Inventory> getInventory({String? groupId}) async {
+  Future<Inventory> getInventory({required String groupId}) async {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+
     final snapshot = await _getInventoryRef(groupId).get();
     if (!snapshot.exists) {
       return Inventory(groupId: groupId);
@@ -193,7 +210,14 @@ class FirestoreService {
     return Inventory.fromJson(snapshot.data() as Map<String, dynamic>);
   }
 
-  Future<void> updateInventory(Inventory inventory, {String? groupId}) async {
+  Future<void> updateInventory(
+    Inventory inventory, {
+    required String groupId,
+  }) async {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+
     // Ensure inventory has the correct groupId
     final inventoryWithGroupId = inventory.groupId == groupId
         ? inventory
@@ -207,7 +231,13 @@ class FirestoreService {
 
   // ===== INVENTORY RECALCULATION =====
 
-  Future<void> recalculateInventoryFromTransactions({String? groupId}) async {
+  Future<void> recalculateInventoryFromTransactions({
+    required String groupId,
+  }) async {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+
     // Get all transactions for this group
     final allTransactions = await getAllTransactions(groupId: groupId);
 
@@ -251,6 +281,7 @@ class FirestoreService {
     final inventory = Inventory(
       denominationCounts: denominationCounts,
       lastUpdated: DateTime.now(),
+      groupId: groupId,
     );
 
     await updateInventory(inventory, groupId: groupId);
@@ -261,8 +292,12 @@ class FirestoreService {
   Future<void> addTransactionAndUpdateInventory(
     CurrencyTransaction transaction,
     String denominationId, {
-    String? groupId,
+    required String groupId,
   }) async {
+    if (groupId.isEmpty) {
+      throw ArgumentError('groupId cannot be empty');
+    }
+
     print(
       'FirestoreService: addTransactionAndUpdateInventory called with groupId = $groupId',
     );
