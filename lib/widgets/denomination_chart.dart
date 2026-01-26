@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/denomination.dart';
+import '../providers/app_provider.dart';
 
 class DenominationChart extends StatelessWidget {
   final Map<Denomination, int> breakdown;
@@ -86,7 +88,7 @@ class DenominationChart extends StatelessWidget {
                     ],
                   ),
                   child: Text(
-                    '₹${totalValue.toStringAsFixed(2)}',
+                    '${Provider.of<AppProvider>(context, listen: false).currencySymbol}${Provider.of<AppProvider>(context, listen: false).formatNumber(totalValue)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 17,
@@ -213,7 +215,16 @@ class DenominationChart extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                denomination.displayValue,
+                                denomination.displayValueWithCurrency(
+                                  Provider.of<AppProvider>(
+                                    context,
+                                    listen: false,
+                                  ).currencySymbol,
+                                  formatter: Provider.of<AppProvider>(
+                                    context,
+                                    listen: false,
+                                  ).formatNumber,
+                                ),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

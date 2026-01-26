@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 
+part 'denomination.g.dart';
+
 @HiveType(typeId: 0)
 class Denomination {
   @HiveField(0)
@@ -21,6 +23,9 @@ class Denomination {
   @HiveField(5)
   final String groupId;
 
+  @HiveField(6)
+  final bool isAutoCreated;
+
   Denomination({
     required this.id,
     required this.value,
@@ -28,6 +33,7 @@ class Denomination {
     this.isActive = true,
     DateTime? createdAt,
     required this.groupId,
+    this.isAutoCreated = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Convert to JSON for Firestore
@@ -39,6 +45,7 @@ class Denomination {
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'groupId': groupId,
+      'isAutoCreated': isAutoCreated,
     };
   }
 
@@ -58,6 +65,7 @@ class Denomination {
       isActive: json['isActive'] as bool? ?? true,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       groupId: groupId,
+      isAutoCreated: json['isAutoCreated'] as bool? ?? false,
     );
   }
 
@@ -69,6 +77,7 @@ class Denomination {
     bool? isActive,
     DateTime? createdAt,
     String? groupId,
+    bool? isAutoCreated,
   }) {
     return Denomination(
       id: id ?? this.id,
@@ -77,6 +86,7 @@ class Denomination {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       groupId: groupId ?? this.groupId,
+      isAutoCreated: isAutoCreated ?? this.isAutoCreated,
     );
   }
 
@@ -89,6 +99,21 @@ class Denomination {
     } else {
       return '₹${value.toStringAsFixed(2)}';
     }
+  }
+
+  // Display value with custom currency symbol and number formatter
+  String displayValueWithCurrency(
+    String currencySymbol, {
+    String Function(double)? formatter,
+  }) {
+    final formattedValue =
+        formatter?.call(value) ??
+        (value < 1
+            ? value.toStringAsFixed(2)
+            : value % 1 == 0
+            ? value.toInt().toString()
+            : value.toStringAsFixed(2));
+    return '$currencySymbol$formattedValue';
   }
 
   @override

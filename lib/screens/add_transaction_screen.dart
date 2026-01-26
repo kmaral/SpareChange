@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/transaction.dart';
 import '../models/denomination.dart';
-import '../models/user.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final TransactionType transactionType;
@@ -21,17 +20,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _reasonController = TextEditingController();
 
   Denomination? _selectedDenomination;
-  User? _selectedUser;
   DateTime _selectedDateTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    // Pre-select the current user
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<AppProvider>(context, listen: false);
+    // User is automatically selected based on Firebase Auth login
+    // Listen to quantity changes to update button state
+    _quantityController.addListener(() {
       setState(() {
-        _selectedUser = provider.selectedUser;
+        // Rebuild to update button enabled state
       });
     });
   }
@@ -88,67 +86,54 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // User selection
+                // Current user display (read-only)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        const Text(
-                          'User',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: provider.selectedUser != null
+                              ? Color(
+                                  int.parse(
+                                    provider.selectedUser!.avatarColor
+                                        .replaceFirst('#', '0xFF'),
+                                  ),
+                                )
+                              : Colors.grey,
+                          child: Text(
+                            provider.selectedUser?.initials ?? '?',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<User>(
-                          initialValue: _selectedUser,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: 'Select user',
-                          ),
-                          items: provider.users.map((user) {
-                            return DropdownMenuItem(
-                              value: user,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: Color(
-                                      int.parse(
-                                        user.avatarColor.replaceFirst(
-                                          '#',
-                                          '0xFF',
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      user.initials,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(user.name),
-                                ],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Logged in as',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            );
-                          }).toList(),
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a user';
-                            }
-                            return null;
-                          },
-                          onChanged: (user) {
-                            setState(() {
-                              _selectedUser = user;
-                            });
-                          },
+                              const SizedBox(height: 4),
+                              Text(
+                                provider.selectedUser?.name ??
+                                    'No user selected',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -249,7 +234,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               label: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(denomination.displayValue),
+                                  Text(
+                                    denomination.displayValueWithCurrency(
+                                      provider.currencySymbol,
+                                      formatter: provider.formatNumber,
+                                    ),
+                                  ),
                                   if (widget.transactionType ==
                                       TransactionType.taken)
                                     Text(
@@ -320,7 +310,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'You have ${provider.inventory.getCount(_selectedDenomination!.id)} notes of ${_selectedDenomination!.displayValue} available',
+                                      'You have ${provider.inventory.getCount(_selectedDenomination!.id)} notes of ${_selectedDenomination!.displayValueWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)} available',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.blue.shade700,
@@ -394,7 +384,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Total: ₹${(_selectedDenomination!.value * (int.tryParse(_quantityController.text) ?? 0)).toStringAsFixed(2)}',
+                                  'Total: ${provider.currencySymbol}${provider.formatNumber((_selectedDenomination!.value * (int.tryParse(_quantityController.text) ?? 0)))}',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -456,7 +446,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ElevatedButton(
                   onPressed:
                       (_selectedDenomination != null &&
-                          _selectedUser != null &&
+                          provider.selectedUser != null &&
                           _quantityController.text.isNotEmpty)
                       ? () => _submitTransaction(provider)
                       : null,
@@ -500,10 +490,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       return;
     }
 
-    if (_selectedUser == null) {
+    // Use the currently logged-in user from provider
+    final currentUser = provider.selectedUser;
+    if (currentUser == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a user')));
+      ).showSnackBar(const SnackBar(content: Text('No user logged in')));
       return;
     }
 
@@ -519,7 +511,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Insufficient notes! Only $available notes of ${_selectedDenomination!.displayValue} available.',
+              'Insufficient notes! Only $available notes of ${_selectedDenomination!.displayValueWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)} available.',
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
@@ -535,7 +527,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     await provider.addTransaction(
-      user: _selectedUser!,
+      user: currentUser,
       denomination: _selectedDenomination!,
       quantity: quantity,
       type: widget.transactionType,

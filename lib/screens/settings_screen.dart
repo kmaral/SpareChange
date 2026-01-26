@@ -16,9 +16,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _authService = AuthService();
-  String _selectedCurrency = 'INR (₹)';
-  String _selectedDateFormat = 'DD/MM/YYYY';
-  String _selectedNumberFormat = '1,234.56';
+  String _selectedCurrency = 'INR';
   Map<String, dynamic>? _groupData;
   bool _isAdmin = false;
 
@@ -26,6 +24,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadGroupData();
+    _loadCurrency();
+  }
+
+  void _loadCurrency() {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    setState(() {
+      _selectedCurrency = provider.currency;
+    });
   }
 
   Future<void> _loadGroupData() async {
@@ -623,6 +629,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
 
+            // Theme Settings
+            _SettingsSection(
+              title: 'Appearance',
+              icon: Icons.palette,
+              children: [
+                Consumer<AppProvider>(
+                  builder: (context, provider, _) => ListTile(
+                    leading: const Icon(Icons.brightness_6),
+                    title: const Text('Theme'),
+                    subtitle: Text(provider.themeMode),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showThemeDialog(),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(),
+            // Currency Settings
+            // _SettingsSection(
+            //   title: 'Regional',
+            //   icon: Icons.language,
+            //   children: [
+            //     // ListTile(
+            //     //   leading: const Icon(Icons.currency_rupee),
+            //     //   title: const Text('Currency'),
+            //     //   subtitle: Text(_getCurrencyDisplay(_selectedCurrency)),
+            //     //   trailing: const Icon(Icons.chevron_right),
+            //     //   onTap: () => _showCurrencyDialog(),
+            //     // ),
+            //     // ListTile(
+            //     //   leading: const Icon(Icons.calendar_today),
+            //     //   title: const Text('Date Format'),
+            //     //   subtitle: Text(_selectedDateFormat),
+            //     //   trailing: const Icon(Icons.chevron_right),
+            //     //   onTap: () => _showDateFormatDialog(),
+            //     // ),
+            //     // ListTile(
+            //     //   leading: const Icon(Icons.numbers),
+            //     //   title: const Text('Number Format'),
+            //     //   subtitle: Text(_selectedNumberFormat),
+            //     //   trailing: const Icon(Icons.chevron_right),
+            //     //   onTap: () => _showNumberFormatDialog(),
+            //     // ),
+            //   ],
+            // ),
+            // const Divider(),
+
             // Privacy & Data Section
             _SettingsSection(
               title: 'Privacy & Data',
@@ -656,7 +709,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
           ],
-
           // Admin Controls Section (only for admin)
           if (_isAdmin) ...[
             _SettingsSection(
@@ -675,54 +727,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
           ],
 
-          // Theme Settings
-          _SettingsSection(
-            title: 'Appearance',
-            icon: Icons.palette,
-            children: [
-              Consumer<AppProvider>(
-                builder: (context, provider, _) => ListTile(
-                  leading: const Icon(Icons.brightness_6),
-                  title: const Text('Theme'),
-                  subtitle: Text(provider.themeMode),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showThemeDialog(),
-                ),
-              ),
-            ],
-          ),
-          const Divider(),
-
-          // Currency Settings
-          _SettingsSection(
-            title: 'Regional',
-            icon: Icons.language,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.currency_rupee),
-                title: const Text('Currency'),
-                subtitle: Text(_selectedCurrency),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showCurrencyDialog(),
-              ),
-              ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Date Format'),
-                subtitle: Text(_selectedDateFormat),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showDateFormatDialog(),
-              ),
-              ListTile(
-                leading: const Icon(Icons.numbers),
-                title: const Text('Number Format'),
-                subtitle: Text(_selectedNumberFormat),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showNumberFormatDialog(),
-              ),
-            ],
-          ),
-          const Divider(),
-
           // App Info
           _SettingsSection(
             title: 'About',
@@ -731,12 +735,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 leading: const Icon(Icons.app_settings_alt),
                 title: const Text('App Version'),
-                subtitle: const Text('1.0.0'),
+                subtitle: const Text('1.10.1'),
               ),
               ListTile(
                 leading: const Icon(Icons.code),
                 title: const Text('Build Number'),
-                subtitle: const Text('1'),
+                subtitle: const Text('7'),
               ),
             ],
           ),
@@ -787,8 +791,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCurrencyDialog() {
-    showDialog(
+  String _getCurrencyDisplay(String currency) {
+    switch (currency) {
+      case 'USD':
+        return 'USD (\$)';
+      case 'EUR':
+        return 'EUR (€)';
+      case 'GBP':
+        return 'GBP (£)';
+      case 'INR':
+      default:
+        return 'INR (₹)';
+    }
+  }
+
+  Future<void> _showCurrencyDialog() async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+
+    final selectedCurrency = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Select Currency'),
@@ -797,132 +817,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             RadioListTile<String>(
               title: const Text('INR (₹)'),
-              value: 'INR (₹)',
+              value: 'INR',
               groupValue: _selectedCurrency,
               onChanged: (value) {
-                setState(() => _selectedCurrency = value!);
-                Navigator.pop(context);
+                Navigator.pop(context, value);
               },
             ),
             RadioListTile<String>(
               title: const Text('USD (\$)'),
-              value: 'USD (\$)',
+              value: 'USD',
               groupValue: _selectedCurrency,
               onChanged: (value) {
-                setState(() => _selectedCurrency = value!);
-                Navigator.pop(context);
+                Navigator.pop(context, value);
               },
             ),
             RadioListTile<String>(
               title: const Text('EUR (€)'),
-              value: 'EUR (€)',
+              value: 'EUR',
               groupValue: _selectedCurrency,
               onChanged: (value) {
-                setState(() => _selectedCurrency = value!);
-                Navigator.pop(context);
+                Navigator.pop(context, value);
               },
             ),
             RadioListTile<String>(
               title: const Text('GBP (£)'),
-              value: 'GBP (£)',
+              value: 'GBP',
               groupValue: _selectedCurrency,
               onChanged: (value) {
-                setState(() => _selectedCurrency = value!);
-                Navigator.pop(context);
+                Navigator.pop(context, value);
               },
             ),
           ],
         ),
       ),
     );
-  }
 
-  void _showDateFormatDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Date Format'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('DD/MM/YYYY'),
-              subtitle: const Text('31/12/2026'),
-              value: 'DD/MM/YYYY',
-              groupValue: _selectedDateFormat,
-              onChanged: (value) {
-                setState(() => _selectedDateFormat = value!);
-                Navigator.pop(context);
-              },
+    if (selectedCurrency != null && selectedCurrency != _selectedCurrency) {
+      final success = await provider.updateCurrency(selectedCurrency);
+      if (success && mounted) {
+        setState(() {
+          _selectedCurrency = selectedCurrency;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Currency changed to ${_getCurrencyDisplay(selectedCurrency)}',
             ),
-            RadioListTile<String>(
-              title: const Text('MM/DD/YYYY'),
-              subtitle: const Text('12/31/2026'),
-              value: 'MM/DD/YYYY',
-              groupValue: _selectedDateFormat,
-              onChanged: (value) {
-                setState(() => _selectedDateFormat = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('YYYY-MM-DD'),
-              subtitle: const Text('2026-12-31'),
-              value: 'YYYY-MM-DD',
-              groupValue: _selectedDateFormat,
-              onChanged: (value) {
-                setState(() => _selectedDateFormat = value!);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNumberFormatDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Number Format'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('1,234.56'),
-              subtitle: const Text('Comma separator, dot decimal'),
-              value: '1,234.56',
-              groupValue: _selectedNumberFormat,
-              onChanged: (value) {
-                setState(() => _selectedNumberFormat = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('1.234,56'),
-              subtitle: const Text('Dot separator, comma decimal'),
-              value: '1.234,56',
-              groupValue: _selectedNumberFormat,
-              onChanged: (value) {
-                setState(() => _selectedNumberFormat = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('1 234.56'),
-              subtitle: const Text('Space separator, dot decimal'),
-              value: '1 234.56',
-              groupValue: _selectedNumberFormat,
-              onChanged: (value) {
-                setState(() => _selectedNumberFormat = value!);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update currency'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

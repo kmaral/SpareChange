@@ -65,6 +65,13 @@ class FirestoreService {
     await _denominations.doc(denominationId).delete();
   }
 
+  // Update group currency
+  Future<void> updateGroupCurrency(String groupId, String currency) async {
+    await _firestore.collection('groups').doc(groupId).update({
+      'currency': currency,
+    });
+  }
+
   Future<bool> hasDenominationTransactions(String denominationId) async {
     final snapshot = await _transactions
         .where('denominationValue', isEqualTo: denominationId)

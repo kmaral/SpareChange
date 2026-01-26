@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'dart:async';
 import '../models/user.dart';
 import '../models/denomination.dart';
@@ -25,6 +27,8 @@ class AppProvider with ChangeNotifier {
   DateTime? _filterEndDate;
   String? _groupId;
   bool _isGroupIdLoaded = false;
+  String _currency = 'INR';
+  String _numberFormat = '1,234.56';
 
   bool _isLoading = false;
   String? _error;
@@ -54,6 +58,12 @@ class AppProvider with ChangeNotifier {
   List<Denomination> get activeDenominations =>
       _denominations.where((d) => d.isActive).toList();
   List<CurrencyTransaction> get transactions => _transactions;
+  // Get transactions for the currently selected user only
+  List<CurrencyTransaction> get userTransactions {
+    if (_selectedUser == null) return [];
+    return _transactions.where((t) => t.userId == _selectedUser!.id).toList();
+  }
+
   Inventory get inventory =>
       _inventory ?? Inventory(groupId: _groupId ?? 'unknown');
   User? get selectedUser => _selectedUser;
@@ -65,6 +75,52 @@ class AppProvider with ChangeNotifier {
   int get pendingSyncCount => _syncService.pendingCount;
   String get themeMode => _themeMode;
   String? get groupId => _groupId;
+  String get currency => _currency;
+  String get numberFormat => _numberFormat;
+  // Get currency symbol
+  String get currencySymbol {
+    switch (_currency) {
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'INR':
+      default:
+        return '₹';
+    }
+  }
+
+  // Get currency icon
+  IconData get currencyIconData {
+    switch (_currency) {
+      case 'USD':
+        return Icons.attach_money;
+      case 'EUR':
+        return Icons.euro_symbol;
+      case 'GBP':
+        return Icons.currency_pound;
+      case 'INR':
+      default:
+        return Icons.currency_rupee;
+    }
+  }
+
+  // Get currency icon name (for backward compatibility)
+  String get currencyIcon {
+    switch (_currency) {
+      case 'USD':
+        return 'attach_money';
+      case 'EUR':
+        return 'euro_symbol';
+      case 'GBP':
+        return 'currency_pound';
+      case 'INR':
+      default:
+        return 'currency_rupee';
+    }
+  }
 
   // Reload groupId (useful after creating/joining a group)
   Future<void> reloadGroupId() async {
@@ -74,8 +130,9 @@ class AppProvider with ChangeNotifier {
       final group = await authService.getUserGroup();
       print('AppProvider: getUserGroup returned: $group');
       _groupId = group?['id'];
+      _currency = (group?['currency'] as String?) ?? 'INR';
       _isGroupIdLoaded = true;
-      print('AppProvider: Reloaded groupId = $_groupId');
+      print('AppProvider: Reloaded groupId = $_groupId, currency = $_currency');
 
       if (_groupId == null) {
         print('AppProvider: WARNING - groupId is still null after reload!');
@@ -146,8 +203,9 @@ class AppProvider with ChangeNotifier {
       final group = await authService.getUserGroup();
       print('AppProvider: getUserGroup returned: $group');
       _groupId = group?['id'];
+      _currency = (group?['currency'] as String?) ?? 'INR';
       _isGroupIdLoaded = true;
-      print('AppProvider: Loaded groupId = $_groupId');
+      print('AppProvider: Loaded groupId = $_groupId, currency = $_currency');
       print('AppProvider: _isGroupIdLoaded = $_isGroupIdLoaded');
 
       if (_groupId == null) {
@@ -201,24 +259,69 @@ class AppProvider with ChangeNotifier {
 
   void _loadThemeMode() {
     _themeMode = _prefs.getString('themeMode') ?? 'System';
-    notifyListeners();
+    print('AppProvider: Loaded theme mode: $_themeMode');
   }
 
   Future<void> setThemeMode(String mode) async {
+    print('AppProvider: Setting theme mode to: $mode');
     _themeMode = mode;
     await _prefs.setString('themeMode', mode);
+    print('AppProvider: Theme mode saved and notifying listeners');
     notifyListeners();
+  }
+
+  Future<bool> updateCurrency(String currency) async {
+    if (_groupId == null) {
+      _error = 'No group found';
+      return false;
+    }
+
+    try {
+      print('AppProvider: Updating currency to: $currency');
+      await _firestoreService.updateGroupCurrency(_groupId!, currency);
+      _currency = currency;
+      print('AppProvider: Currency updated successfully');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('AppProvider: Error updating currency: $e');
+      _error = e.toString();
+      return false;
+    }
+  }
+
+  // Format number with comma separator and dot decimal (1,234.56)
+  String formatNumber(double value, {int decimals = 2}) {
+    final formatted = value.toStringAsFixed(decimals);
+    final parts = formatted.split('.');
+    final integerPart = parts[0];
+    final decimalPart = parts.length > 1 ? parts[1] : '';
+
+    final regex = RegExp(r'\B(?=(\d{3})+(?!\d))');
+    final formattedInteger = integerPart.replaceAllMapped(
+      regex,
+      (match) => ',',
+    );
+
+    return decimalPart.isNotEmpty
+        ? '$formattedInteger.$decimalPart'
+        : formattedInteger;
   }
 
   // ===== USER OPERATIONS =====
 
-  Future<User?> addUser(String name, String avatarColor) async {
+  Future<User?> addUser(
+    String name,
+    String avatarColor, {
+    String? firebaseUid,
+  }) async {
     _setLoading(true);
     try {
       final user = User(
         id: const Uuid().v4(),
         name: name,
         avatarColor: avatarColor,
+        firebaseUid: firebaseUid,
       );
 
       await _firestoreService.addUser(user);
@@ -292,6 +395,94 @@ class AppProvider with ChangeNotifier {
 
   // ===== DENOMINATION OPERATIONS =====
 
+  // Auto-create INR denominations for a group
+  Future<void> autoCreateINRDenominations() async {
+    try {
+      await _ensureGroupIdLoaded();
+
+      // Check if auto-created denominations already exist
+      final hasAutoCreated = _denominations.any((d) => d.isAutoCreated);
+      if (hasAutoCreated) {
+        print('AppProvider: Auto-created INR denominations already exist');
+        return;
+      }
+
+      final inrValues = [10.0, 20.0, 50.0, 100.0, 200.0, 500.0];
+
+      for (final value in inrValues) {
+        // Check if denomination with this value already exists
+        final exists = _denominations.any((d) => d.value == value);
+        if (!exists) {
+          final denomination = Denomination(
+            id: const Uuid().v4(),
+            value: value,
+            type: DenominationType.note,
+            isActive: true,
+            groupId: _groupId!,
+            isAutoCreated: true,
+          );
+
+          if (_syncService.isOnline) {
+            await _firestoreService.addDenomination(denomination);
+          }
+        }
+      }
+
+      print('AppProvider: Auto-created INR denominations');
+    } catch (e) {
+      print('AppProvider: Error auto-creating INR denominations: $e');
+    }
+  }
+
+  // Delete all auto-created denominations
+  Future<void> deleteAutoCreatedDenominations() async {
+    try {
+      await _ensureGroupIdLoaded();
+
+      final autoCreatedDenoms = _denominations
+          .where((d) => d.isAutoCreated)
+          .toList();
+
+      for (final denom in autoCreatedDenoms) {
+        if (_syncService.isOnline) {
+          await _firestoreService.deleteDenomination(denom.id);
+        }
+      }
+
+      print('AppProvider: Deleted all auto-created denominations');
+    } catch (e) {
+      print('AppProvider: Error deleting auto-created denominations: $e');
+    }
+  }
+
+  // Update group currency
+  Future<void> updateGroupCurrency(String currency) async {
+    try {
+      await _ensureGroupIdLoaded();
+
+      if (_syncService.isOnline) {
+        await _firestoreService.updateGroupCurrency(_groupId!, currency);
+
+        // Update local currency state
+        _currency = currency;
+
+        // If changed to INR, auto-create denominations
+        if (currency == 'INR') {
+          await autoCreateINRDenominations();
+        } else {
+          // If changed from INR, delete auto-created denominations
+          await deleteAutoCreatedDenominations();
+        }
+
+        notifyListeners();
+      } else {
+        _setError('Cannot update currency while offline');
+      }
+    } catch (e) {
+      _setError('Failed to update currency: $e');
+    }
+  }
+
   Future<void> addDenomination(double value, DenominationType type) async {
     _setLoading(true);
     try {
@@ -300,10 +491,13 @@ class AppProvider with ChangeNotifier {
 
       print('AppProvider: Adding denomination with groupId = $_groupId');
 
-      // Check if denomination with this value already exists
-      final exists = _denominations.any((d) => d.value == value);
+      // Check if denomination with this value and type already exists
+      final exists = _denominations.any(
+        (d) => d.value == value && d.type == type,
+      );
       if (exists) {
-        _setError('Denomination with value ₹$value already exists');
+        final typeName = type == DenominationType.coin ? 'coin' : 'note';
+        _setError('$typeName with value ₹$value already exists');
         _setLoading(false);
         return;
       }
@@ -314,6 +508,7 @@ class AppProvider with ChangeNotifier {
         type: type,
         isActive: true,
         groupId: _groupId!,
+        isAutoCreated: false, // Manually added
       );
 
       print(
@@ -584,6 +779,21 @@ class AppProvider with ChangeNotifier {
         .calculateTotalValue(denominationValues);
   }
 
+  // Get total balance for the currently selected user
+  double getUserBalance() {
+    if (_selectedUser == null) return 0.0;
+
+    double balance = 0.0;
+    for (final transaction in userTransactions) {
+      if (transaction.transactionType == TransactionType.added) {
+        balance += transaction.totalAmount;
+      } else {
+        balance -= transaction.totalAmount;
+      }
+    }
+    return balance;
+  }
+
   Map<Denomination, int> getDenominationBreakdown() {
     final breakdown = <Denomination, int>{};
     final inventory = _inventory ?? Inventory(groupId: _groupId ?? 'unknown');
@@ -594,6 +804,35 @@ class AppProvider with ChangeNotifier {
       }
     }
     return breakdown;
+  }
+
+  // Get denomination breakdown for the currently selected user
+  Map<Denomination, int> getUserDenominationBreakdown() {
+    if (_selectedUser == null) return {};
+
+    final breakdown = <String, int>{};
+
+    // Calculate from user's transactions
+    for (final transaction in userTransactions) {
+      final denomId = transaction.denominationId;
+      final currentCount = breakdown[denomId] ?? 0;
+
+      if (transaction.transactionType == TransactionType.added) {
+        breakdown[denomId] = currentCount + transaction.quantity;
+      } else {
+        breakdown[denomId] = currentCount - transaction.quantity;
+      }
+    }
+
+    // Convert to Denomination map
+    final result = <Denomination, int>{};
+    for (final denomination in _denominations) {
+      final count = breakdown[denomination.id] ?? 0;
+      if (count > 0) {
+        result[denomination] = count;
+      }
+    }
+    return result;
   }
 
   // ===== PRIVATE METHODS =====
@@ -618,15 +857,32 @@ class AppProvider with ChangeNotifier {
 
     _usersSubscription = _firestoreService.streamUsers().listen((users) {
       _users = users;
-      // Set selected user if it was saved
+      // Auto-select user based on Firebase Auth UID
       if (_selectedUser == null) {
-        final userId = _prefs.getString('selected_user_id');
-        if (userId != null) {
-          final matchingUser = users.where((u) => u.id == userId);
+        final firebaseUser = auth.FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          // Try to find user by Firebase UID
+          final matchingUser = users.where(
+            (u) => u.firebaseUid == firebaseUser.uid,
+          );
           if (matchingUser.isNotEmpty) {
             _selectedUser = matchingUser.first;
-          } else if (users.isNotEmpty) {
-            _selectedUser = users.first;
+            _prefs.setString('selected_user_id', _selectedUser!.id);
+            print(
+              'AppProvider: Auto-selected user ${_selectedUser!.name} based on Firebase UID',
+            );
+          } else {
+            // Fallback: try to match by saved user ID
+            final userId = _prefs.getString('selected_user_id');
+            if (userId != null) {
+              final savedUser = users.where((u) => u.id == userId);
+              if (savedUser.isNotEmpty) {
+                _selectedUser = savedUser.first;
+                print(
+                  'AppProvider: Selected user ${_selectedUser!.name} from saved preferences',
+                );
+              }
+            }
           }
         }
       }
@@ -666,13 +922,13 @@ class AppProvider with ChangeNotifier {
         });
   }
 
-  void _setLoading(bool loading) {
-    _isLoading = loading;
+  void _setError(String error) {
+    _error = error;
     notifyListeners();
   }
 
-  void _setError(String error) {
-    _error = error;
+  void _setLoading(bool loading) {
+    _isLoading = loading;
     notifyListeners();
   }
 
@@ -689,7 +945,7 @@ class AppProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _cancelSubscriptions();
+    _cancelSubscriptions(); // Don't await here, just call it
     super.dispose();
   }
 }

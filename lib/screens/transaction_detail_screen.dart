@@ -15,6 +15,7 @@ class TransactionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
+    final provider = Provider.of<AppProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -56,7 +57,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
-                    '${transaction.displayTotalAmount}',
+                    '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
@@ -95,7 +96,10 @@ class TransactionDetailScreen extends StatelessWidget {
                   _DetailRow(
                     icon: Icons.monetization_on,
                     label: 'Denomination',
-                    value: transaction.displayDenomination,
+                    value: transaction.displayDenominationWithCurrency(
+                      provider.currencySymbol,
+                      formatter: provider.formatNumber,
+                    ),
                   ),
                   const Divider(),
                   _DetailRow(
@@ -107,7 +111,10 @@ class TransactionDetailScreen extends StatelessWidget {
                   _DetailRow(
                     icon: Icons.calculate,
                     label: 'Total Amount',
-                    value: transaction.displayTotalAmount,
+                    value: transaction.displayTotalAmountWithCurrency(
+                      provider.currencySymbol,
+                      formatter: provider.formatNumber,
+                    ),
                   ),
                   const Divider(),
                   _DetailRow(
@@ -371,7 +378,12 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
                     items: provider.activeDenominations.map((denomination) {
                       return DropdownMenuItem(
                         value: denomination,
-                        child: Text(denomination.displayValue),
+                        child: Text(
+                          denomination.displayValueWithCurrency(
+                            provider.currencySymbol,
+                            formatter: provider.formatNumber,
+                          ),
+                        ),
                       );
                     }).toList(),
                     onChanged: (denomination) {
@@ -439,7 +451,8 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
                   );
 
                   if (context.mounted) {
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close edit dialog
+                    Navigator.pop(context); // Close detail screen
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Transaction updated successfully'),

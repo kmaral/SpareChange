@@ -42,6 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
         // Wait a bit for streams to load
         await Future.delayed(const Duration(milliseconds: 500));
 
+        // Auto-create INR denominations if none exist (for new groups)
+        if (provider.denominations.isEmpty && mounted) {
+          await provider.autoCreateINRDenominations();
+        }
+
         // Recalculate inventory to ensure it's in sync with transactions
         if (provider.isOnline && mounted) {
           await provider.recalculateInventory();
@@ -54,17 +59,32 @@ class _HomeScreenState extends State<HomeScreen> {
           final newUser = await provider.addUser(
             displayName,
             '#4CAF50',
+            firebaseUid: user.uid,
           ); // Green color
 
           // Auto-select the newly created user
           if (newUser != null && mounted) {
             provider.setSelectedUser(newUser);
           }
-        } else if (provider.selectedUser == null &&
-            provider.users.isNotEmpty &&
-            mounted) {
-          // Auto-select first user if none selected
-          provider.setSelectedUser(provider.users.first);
+        } else if (mounted) {
+          // Check if there's a user linked to this Firebase UID
+          final matchingUser = provider.users.where(
+            (u) => u.firebaseUid == user.uid,
+          );
+          if (matchingUser.isEmpty) {
+            // Firebase user doesn't have an app user yet - create one
+            final displayName =
+                user.displayName ?? user.email?.split('@').first ?? 'User';
+            final newUser = await provider.addUser(
+              displayName,
+              '#4CAF50',
+              firebaseUid: user.uid,
+            );
+            if (newUser != null && mounted) {
+              provider.setSelectedUser(newUser);
+            }
+          }
+          // If matching user exists, it will be auto-selected by the stream listener
         }
       }
     });
@@ -166,6 +186,34 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              // Current user indicator
+              if (provider.selectedUser != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Chip(
+                    avatar: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Color(
+                        int.parse(
+                          provider.selectedUser!.avatarColor.replaceFirst(
+                            '#',
+                            '0xFF',
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        provider.selectedUser!.initials,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    label: Text(provider.selectedUser!.name),
+                    labelStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
               // Sync status indicator
               if (!provider.isOnline)
                 Padding(
@@ -425,6 +473,7 @@ class _BalanceSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
+        // Show total group balance (all users combined)
         final totalBalance = provider.getTotalBalance();
 
         return Card(
@@ -468,7 +517,7 @@ class _BalanceSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '₹${totalBalance.toStringAsFixed(2)}',
+                    '${provider.currencySymbol}${provider.formatNumber(totalBalance)}',
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
@@ -491,6 +540,7 @@ class _DenominationBreakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
+        // Show total group breakdown (all users combined)
         final breakdown = provider.getDenominationBreakdown();
         return DenominationChart(breakdown: breakdown);
       },

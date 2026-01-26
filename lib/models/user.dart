@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import '../services/encryption_service.dart';
 
+part 'user.g.dart';
+
 @HiveType(typeId: 2)
 class User {
   @HiveField(0)
@@ -16,11 +18,15 @@ class User {
   @HiveField(3)
   final DateTime createdAt;
 
+  @HiveField(4)
+  final String? firebaseUid;
+
   User({
     required this.id,
     required this.name,
     required this.avatarColor,
     DateTime? createdAt,
+    this.firebaseUid,
   }) : createdAt = createdAt ?? DateTime.now();
 
   // Convert to JSON for Firestore
@@ -31,6 +37,7 @@ class User {
       'name': encryption.encrypt(name),
       'avatarColor': avatarColor,
       'createdAt': Timestamp.fromDate(createdAt),
+      'firebaseUid': firebaseUid,
     };
   }
 
@@ -45,6 +52,7 @@ class User {
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      firebaseUid: json['firebaseUid'] as String?,
     );
   }
 
@@ -54,12 +62,14 @@ class User {
     String? name,
     String? avatarColor,
     DateTime? createdAt,
+    String? firebaseUid,
   }) {
     return User(
       id: id ?? this.id,
       name: name ?? this.name,
       avatarColor: avatarColor ?? this.avatarColor,
       createdAt: createdAt ?? this.createdAt,
+      firebaseUid: firebaseUid ?? this.firebaseUid,
     );
   }
 
@@ -76,7 +86,7 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, avatarColor: $avatarColor)';
+    return 'User(id: $id, name: $name, avatarColor: $avatarColor, firebaseUid: $firebaseUid)';
   }
 
   @override

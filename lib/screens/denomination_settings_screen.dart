@@ -30,66 +30,78 @@ class DenominationSettingsScreen extends StatelessWidget {
                     'No denominations yet',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'INR denominations are added automatically',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () =>
                         _showAddDenominationDialog(context, provider),
                     icon: const Icon(Icons.add),
-                    label: const Text('Add First Denomination'),
+                    label: const Text('Add Custom Denomination'),
                   ),
                 ],
               ),
             );
           }
 
-          // Separate coins and notes
-          final coins =
-              denominations
-                  .where((d) => d.type == DenominationType.coin)
-                  .toList()
+          // Separate auto-created and manual denominations
+          final autoCreated =
+              denominations.where((d) => d.isAutoCreated).toList()
                 ..sort((a, b) => a.value.compareTo(b.value));
-
-          final notes =
-              denominations
-                  .where((d) => d.type == DenominationType.note)
-                  .toList()
-                ..sort((a, b) => a.value.compareTo(b.value));
+          final manual = denominations.where((d) => !d.isAutoCreated).toList()
+            ..sort((a, b) => a.value.compareTo(b.value));
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (coins.isNotEmpty) ...[
-                const Text(
-                  'COINS',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+              if (autoCreated.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const Text(
+                      'INR DENOMINATIONS (Auto-created)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'These are automatically added for INR currency',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
-                ...coins.map(
+                ...autoCreated.map(
                   (denomination) => _DenominationListItem(
                     denomination: denomination,
                     provider: provider,
+                    isAutoCreated: true,
                   ),
                 ),
                 const SizedBox(height: 24),
               ],
-              if (notes.isNotEmpty) ...[
+              if (manual.isNotEmpty) ...[
                 const Text(
-                  'NOTES',
+                  'CUSTOM DENOMINATIONS',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...notes.map(
+                ...manual.map(
                   (denomination) => _DenominationListItem(
                     denomination: denomination,
                     provider: provider,
+                    isAutoCreated: false,
                   ),
                 ),
               ],
@@ -105,7 +117,7 @@ class DenominationSettingsScreen extends StatelessWidget {
             Provider.of<AppProvider>(context, listen: false),
           ),
           icon: const Icon(Icons.add),
-          label: const Text('Add Denomination'),
+          label: const Text('Add Custom'),
           elevation: 4,
         ),
       ),
@@ -123,10 +135,12 @@ class DenominationSettingsScreen extends StatelessWidget {
 class _DenominationListItem extends StatelessWidget {
   final Denomination denomination;
   final AppProvider provider;
+  final bool isAutoCreated;
 
   const _DenominationListItem({
     required this.denomination,
     required this.provider,
+    this.isAutoCreated = false,
   });
 
   @override
@@ -147,7 +161,10 @@ class _DenominationListItem extends StatelessWidget {
           ),
         ),
         title: Text(
-          denomination.displayValue,
+          denomination.displayValueWithCurrency(
+            provider.currencySymbol,
+            formatter: provider.formatNumber,
+          ),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             decoration: denomination.isActive
@@ -156,25 +173,57 @@ class _DenominationListItem extends StatelessWidget {
             color: denomination.isActive ? null : Colors.grey,
           ),
         ),
-        subtitle: Text(
-          denomination.isActive ? 'Active' : 'Inactive',
-          style: TextStyle(
-            color: denomination.isActive ? Colors.green : Colors.grey,
-          ),
+        subtitle: Row(
+          children: [
+            Text(
+              denomination.isActive ? 'Active' : 'Inactive',
+              style: TextStyle(
+                color: denomination.isActive ? Colors.green : Colors.grey,
+              ),
+            ),
+            if (isAutoCreated) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Auto',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Switch(
-              value: denomination.isActive,
-              onChanged: (value) {
-                provider.toggleDenominationActive(denomination);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _showDeleteDialog(context, denomination),
-            ),
+            if (!isAutoCreated) ...[
+              Switch(
+                value: denomination.isActive,
+                onChanged: (value) {
+                  provider.toggleDenominationActive(denomination);
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _showDeleteDialog(context, denomination),
+              ),
+            ] else ...[
+              // Auto-created denominations can only be toggled
+              Switch(
+                value: denomination.isActive,
+                onChanged: (value) {
+                  provider.toggleDenominationActive(denomination);
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -185,12 +234,13 @@ class _DenominationListItem extends StatelessWidget {
     BuildContext context,
     Denomination denomination,
   ) async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Denomination'),
         content: Text(
-          'Are you sure you want to delete ${denomination.displayValue}? '
+          'Are you sure you want to delete ${denomination.displayValueWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}? '
           'This action cannot be undone.',
         ),
         actions: [
@@ -262,6 +312,8 @@ class _AddDenominationDialogState extends State<_AddDenominationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final currencySymbol = widget.provider.currencySymbol;
+
     return AlertDialog(
       title: const Text('Add Denomination'),
       content: Form(
@@ -271,11 +323,11 @@ class _AddDenominationDialogState extends State<_AddDenominationDialog> {
           children: [
             TextFormField(
               controller: _valueController,
-              decoration: const InputDecoration(
-                labelText: 'Value (₹)',
+              decoration: InputDecoration(
+                labelText: 'Value ($currencySymbol)',
                 hintText: 'e.g., 1, 2, 5, 10, 20',
-                border: OutlineInputBorder(),
-                prefixText: '₹ ',
+                border: const OutlineInputBorder(),
+                prefixText: '$currencySymbol ',
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -290,6 +342,16 @@ class _AddDenominationDialogState extends State<_AddDenominationDialog> {
                 final numValue = double.tryParse(value);
                 if (numValue == null || numValue <= 0) {
                   return 'Please enter a valid positive number';
+                }
+                // Check for duplicate value with same type
+                final exists = widget.provider.denominations.any(
+                  (d) => d.value == numValue && d.type == _selectedType,
+                );
+                if (exists) {
+                  final typeName = _selectedType == DenominationType.coin
+                      ? 'coin'
+                      : 'note';
+                  return '$typeName with value ${widget.provider.currencySymbol}$numValue already exists';
                 }
                 return null;
               },
@@ -313,6 +375,8 @@ class _AddDenominationDialogState extends State<_AddDenominationDialog> {
               onSelectionChanged: (Set<DenominationType> newSelection) {
                 setState(() {
                   _selectedType = newSelection.first;
+                  // Revalidate the form when type changes
+                  _formKey.currentState?.validate();
                 });
               },
             ),

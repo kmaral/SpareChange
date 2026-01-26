@@ -295,6 +295,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'members': [user.uid],
         'maxMembers': 6,
+        'currency': 'INR', // Default currency
       });
 
       print('Group created with ID: ${groupDoc.id}');
@@ -330,6 +331,20 @@ class AuthService {
 
       final groupData = groupSnapshot.data()!;
       final members = List<String>.from(groupData['members'] ?? []);
+
+      // Check if user is already a member
+      if (members.contains(user.uid)) {
+        // User is already a member, just update their info
+        await _firestore.collection('users').doc(user.uid).set({
+          'groupId': groupId,
+          'displayName': userName,
+          'email': userEmail,
+        }, SetOptions(merge: true));
+
+        // Update Firebase Auth profile
+        await user.updateDisplayName(userName);
+        return true;
+      }
 
       // Check if group is full
       if (members.length >= (groupData['maxMembers'] ?? 6)) {
@@ -370,6 +385,15 @@ class AuthService {
 
       final groupData = groupSnapshot.data()!;
       final members = List<String>.from(groupData['members'] ?? []);
+
+      // Check if user is already a member
+      if (members.contains(user.uid)) {
+        // User is already a member, just update their groupId
+        await _firestore.collection('users').doc(user.uid).set({
+          'groupId': groupId,
+        }, SetOptions(merge: true));
+        return true;
+      }
 
       // Check if group is full
       if (members.length >= (groupData['maxMembers'] ?? 6)) {

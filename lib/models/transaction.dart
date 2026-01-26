@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import '../services/encryption_service.dart';
 
+part 'transaction.g.dart';
+
 @HiveType(typeId: 3)
 class CurrencyTransaction {
   @HiveField(0)
@@ -157,6 +159,21 @@ class CurrencyTransaction {
     }
   }
 
+  // Display denomination value with custom currency symbol and number formatter
+  String displayDenominationWithCurrency(
+    String currencySymbol, {
+    String Function(double)? formatter,
+  }) {
+    final formattedValue =
+        formatter?.call(denominationValue) ??
+        (denominationValue < 1
+            ? denominationValue.toStringAsFixed(2)
+            : denominationValue % 1 == 0
+            ? denominationValue.toInt().toString()
+            : denominationValue.toStringAsFixed(2));
+    return '$currencySymbol$formattedValue';
+  }
+
   // Display total amount with currency symbol
   String get displayTotalAmount {
     if (totalAmount < 1) {
@@ -166,6 +183,21 @@ class CurrencyTransaction {
     } else {
       return '₹${totalAmount.toStringAsFixed(2)}';
     }
+  }
+
+  // Display total amount with custom currency symbol and number formatter
+  String displayTotalAmountWithCurrency(
+    String currencySymbol, {
+    String Function(double)? formatter,
+  }) {
+    final formattedValue =
+        formatter?.call(totalAmount) ??
+        (totalAmount < 1
+            ? totalAmount.toStringAsFixed(2)
+            : totalAmount % 1 == 0
+            ? totalAmount.toInt().toString()
+            : totalAmount.toStringAsFixed(2));
+    return '$currencySymbol$formattedValue';
   }
 
   // Get sign prefix for display (+/-)

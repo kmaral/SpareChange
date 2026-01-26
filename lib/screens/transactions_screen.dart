@@ -17,6 +17,34 @@ class TransactionsScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Transactions'),
             actions: [
+              // Current user indicator
+              if (provider.selectedUser != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Chip(
+                    avatar: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Color(
+                        int.parse(
+                          provider.selectedUser!.avatarColor.replaceFirst(
+                            '#',
+                            '0xFF',
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        provider.selectedUser!.initials,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    label: Text(provider.selectedUser!.name),
+                    labelStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
               // Sync status indicator
               if (!provider.isOnline)
                 Padding(
@@ -210,6 +238,7 @@ class _TransactionsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
+        // Show all group transactions instead of just selected user's
         final transactions = provider.transactions;
 
         if (transactions.isEmpty) {
@@ -267,7 +296,7 @@ class _TransactionsList extends StatelessWidget {
                 ),
                 title: Text(
                   '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
-                  '${transaction.displayTotalAmount}',
+                  '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -282,7 +311,7 @@ class _TransactionsList extends StatelessWidget {
                   children: [
                     const SizedBox(height: 4),
                     Text(
-                      '${transaction.displayDenomination} × ${transaction.quantity}',
+                      '${transaction.displayDenominationWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)} × ${transaction.quantity}',
                       style: const TextStyle(fontSize: 15),
                     ),
                     const SizedBox(height: 2),

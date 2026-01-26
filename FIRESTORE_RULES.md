@@ -12,6 +12,12 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Helper function to check if user belongs to the group
+    function belongsToGroup(groupId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]);
+    }
+    
     // Helper function to get user's groupId
     function getUserGroupId() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId;

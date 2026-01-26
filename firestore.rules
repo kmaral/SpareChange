@@ -18,7 +18,7 @@ service cloud.firestore {
     // Helper function to check if user belongs to the group
     function belongsToGroup(groupId) {
       return isAuthenticated() && 
-             exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+             get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]);
     }
 
     // Denominations collection - must have valid groupId
@@ -72,14 +72,35 @@ service cloud.firestore {
 
     // Groups collection
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && belongsToGroup(groupId);
+      // Allow any authenticated user to read groups (needed for joining)
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && belongsToGroup(groupId);
+      // Allow updates if:
+      // 1. User is already a member (for admin operations)
+      // 2. User is adding themselves to the members array (for joining)
+      allow update: if isAuthenticated() && 
+        (belongsToGroup(groupId) || 
+         (request.resource.data.members.hasAny([request.auth.uid]) && 
+          !resource.data.members.hasAny([request.auth.uid])));
       
       match /members/{userId} {
         allow read: if isAuthenticated() && belongsToGroup(groupId);
         allow write: if isAuthenticated() && belongsToGroup(groupId);
       }
+    }
+
+    // Users collection - each user can read/write their own document
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allow writes if:
+      // 1. User is updating their own document
+      // 2. Admin is removing a user from their group (only groupId can be set to null)
+      allow write: if isAuthenticated() && 
+        (request.auth.uid == userId || 
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groupId']) &&
+          request.resource.data.groupId == null &&
+          resource.data.groupId != null &&
+          get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.adminId == request.auth.uid));
     }
 
     // Family members (users) collection

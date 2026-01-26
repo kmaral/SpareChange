@@ -65,11 +65,13 @@ class MyApp extends StatelessWidget {
       ),
       child: Consumer<AppProvider>(
         builder: (context, provider, _) {
+          print('Main: Building app with themeMode: ${provider.themeMode}');
           final themeMode = provider.themeMode == 'Light'
               ? ThemeMode.light
               : provider.themeMode == 'Dark'
               ? ThemeMode.dark
               : ThemeMode.system;
+          print('Main: Resolved ThemeMode enum: $themeMode');
 
           return MaterialApp(
             title: 'Spare Change',
