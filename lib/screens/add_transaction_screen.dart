@@ -25,7 +25,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void initState() {
     super.initState();
-    // User is automatically selected based on Firebase Auth login
     // Listen to quantity changes to update button state
     _quantityController.addListener(() {
       setState(() {
@@ -86,61 +85,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Current user display (read-only)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: provider.selectedUser != null
-                              ? Color(
-                                  int.parse(
-                                    provider.selectedUser!.avatarColor
-                                        .replaceFirst('#', '0xFF'),
-                                  ),
-                                )
-                              : Colors.grey,
-                          child: Text(
-                            provider.selectedUser?.initials ?? '?',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Logged in as',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                provider.selectedUser?.name ??
-                                    'No user selected',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
                 // Date and Time selection
                 Card(
                   child: Padding(
@@ -446,7 +390,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ElevatedButton(
                   onPressed:
                       (_selectedDenomination != null &&
-                          provider.selectedUser != null &&
                           _quantityController.text.isNotEmpty)
                       ? () => _submitTransaction(provider)
                       : null,
@@ -490,15 +433,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       return;
     }
 
-    // Use the currently logged-in user from provider
-    final currentUser = provider.selectedUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No user logged in')));
-      return;
-    }
-
     final quantity = int.parse(_quantityController.text);
     final reason = _reasonController.text.trim().isEmpty
         ? null
@@ -527,7 +461,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     await provider.addTransaction(
-      user: currentUser,
       denomination: _selectedDenomination!,
       quantity: quantity,
       type: widget.transactionType,

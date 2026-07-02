@@ -22,7 +22,6 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       type: fields[2] as DenominationType,
       isActive: fields[3] as bool,
       createdAt: fields[4] as DateTime?,
-      groupId: fields[5] as String,
       isAutoCreated: fields[6] as bool,
     );
   }
@@ -30,7 +29,7 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
   @override
   void write(BinaryWriter writer, Denomination obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,8 +40,6 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       ..write(obj.isActive)
       ..writeByte(4)
       ..write(obj.createdAt)
-      ..writeByte(5)
-      ..write(obj.groupId)
       ..writeByte(6)
       ..write(obj.isAutoCreated);
   }

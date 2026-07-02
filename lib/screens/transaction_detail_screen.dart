@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../providers/app_provider.dart';
 import '../models/transaction.dart';
 import '../models/denomination.dart';
-import '../models/user.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
   final String transactionId;
@@ -31,14 +30,11 @@ class TransactionDetailScreen extends StatelessWidget {
             // Return a dummy transaction to avoid null issues
             return CurrencyTransaction(
               id: transactionId,
-              userId: '',
-              userName: '',
               denominationValue: 0,
               denominationId: '',
               quantity: 0,
               transactionType: TransactionType.added,
               totalAmount: 0,
-              groupId: '',
             );
           },
         );
@@ -118,12 +114,6 @@ class TransactionDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _DetailRow(
-                        icon: Icons.person,
-                        label: 'User',
-                        value: transaction.userName,
-                      ),
-                      const Divider(),
-                      _DetailRow(
                         icon: Icons.monetization_on,
                         label: 'Denomination',
                         value: transaction.displayDenominationWithCurrency(
@@ -170,21 +160,6 @@ class TransactionDetailScreen extends StatelessWidget {
                           value: dateFormat.format(transaction.lastModified),
                         ),
                       ],
-                      const Divider(),
-                      _DetailRow(
-                        icon: Icons.sync,
-                        label: 'Sync Status',
-                        value: transaction.syncStatus
-                            .toString()
-                            .split('.')
-                            .last
-                            .toUpperCase(),
-                        valueColor: transaction.syncStatus == SyncStatus.synced
-                            ? Colors.green
-                            : transaction.syncStatus == SyncStatus.failed
-                            ? Colors.red
-                            : Colors.orange,
-                      ),
                     ],
                   ),
                 ),
@@ -308,7 +283,6 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
   final _reasonController = TextEditingController();
 
   Denomination? _selectedDenomination;
-  User? _selectedUser;
   late TransactionType _selectedType;
 
   @override
@@ -321,10 +295,6 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<AppProvider>(context, listen: false);
       setState(() {
-        _selectedUser = provider.users.firstWhere(
-          (u) => u.id == widget.transaction.userId,
-          orElse: () => provider.users.first,
-        );
         _selectedDenomination = provider.activeDenominations.firstWhere(
           (d) => d.value == widget.transaction.denominationValue,
           orElse: () => provider.activeDenominations.first,
@@ -353,28 +323,6 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // User selection
-                  const Text(
-                    'User',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<User>(
-                    initialValue: _selectedUser,
-                    items: provider.users.map((user) {
-                      return DropdownMenuItem(
-                        value: user,
-                        child: Text(user.name),
-                      );
-                    }).toList(),
-                    onChanged: (user) {
-                      setState(() {
-                        _selectedUser = user;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
                   // Transaction type
                   const Text(
                     'Type',
@@ -473,11 +421,9 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
             ElevatedButton(
               onPressed: () async {
                 if (_formKey.currentState!.validate() &&
-                    _selectedUser != null &&
                     _selectedDenomination != null) {
                   await provider.updateTransaction(
                     transaction: widget.transaction,
-                    user: _selectedUser!,
                     denomination: _selectedDenomination!,
                     quantity: int.parse(_quantityController.text),
                     type: _selectedType,

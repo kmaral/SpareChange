@@ -14,58 +14,7 @@ class TransactionsScreen extends StatelessWidget {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Transactions'),
-            actions: [
-              // Current user indicator
-              if (provider.selectedUser != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Chip(
-                    avatar: CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Color(
-                        int.parse(
-                          provider.selectedUser!.avatarColor.replaceFirst(
-                            '#',
-                            '0xFF',
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        provider.selectedUser!.initials,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    label: Text(provider.selectedUser!.name),
-                    labelStyle: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              // Sync status indicator
-              if (!provider.isOnline)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Chip(
-                    avatar: const Icon(Icons.cloud_off, size: 16),
-                    label: Text('Offline (${provider.pendingSyncCount})'),
-                    labelStyle: const TextStyle(fontSize: 12),
-                  ),
-                )
-              else if (provider.pendingSyncCount > 0)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Chip(
-                    avatar: const Icon(Icons.sync, size: 16),
-                    label: Text('Syncing (${provider.pendingSyncCount})'),
-                    labelStyle: const TextStyle(fontSize: 12),
-                  ),
-                ),
-            ],
-          ),
+          appBar: AppBar(title: const Text('Transactions')),
           body: Column(
             children: [
               // Date filter
@@ -75,49 +24,47 @@ class TransactionsScreen extends StatelessWidget {
               Expanded(child: _TransactionsList()),
             ],
           ),
-          floatingActionButton: provider.selectedUser == null
-              ? null
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // Add money FAB
-                    FloatingActionButton.extended(
-                      heroTag: 'add',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddTransactionScreen(
-                              transactionType: TransactionType.added,
-                            ),
-                          ),
-                        );
-                      },
-                      backgroundColor: Colors.green,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add'),
+          floatingActionButton: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Add money FAB
+              FloatingActionButton.extended(
+                heroTag: 'add',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionScreen(
+                        transactionType: TransactionType.added,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    // Take money FAB
-                    FloatingActionButton.extended(
-                      heroTag: 'take',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddTransactionScreen(
-                              transactionType: TransactionType.taken,
-                            ),
-                          ),
-                        );
-                      },
-                      backgroundColor: Colors.red,
-                      icon: const Icon(Icons.remove),
-                      label: const Text('Take'),
+                  );
+                },
+                backgroundColor: Colors.green,
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
+              ),
+              const SizedBox(height: 12),
+              // Take money FAB
+              FloatingActionButton.extended(
+                heroTag: 'take',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionScreen(
+                        transactionType: TransactionType.taken,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
+                  );
+                },
+                backgroundColor: Colors.red,
+                icon: const Icon(Icons.remove),
+                label: const Text('Take'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         );
       },
     );
@@ -316,11 +263,6 @@ class _TransactionsList extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      transaction.userName,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
                       dateFormat.format(transaction.timestamp),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
@@ -339,11 +281,7 @@ class _TransactionsList extends StatelessWidget {
                     ],
                   ],
                 ),
-                trailing: transaction.syncStatus == SyncStatus.pending
-                    ? const Icon(Icons.sync, color: Colors.orange)
-                    : transaction.syncStatus == SyncStatus.failed
-                    ? const Icon(Icons.error, color: Colors.red)
-                    : const Icon(Icons.chevron_right, color: Colors.grey),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(
                     context,

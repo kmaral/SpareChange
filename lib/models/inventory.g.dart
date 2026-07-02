@@ -19,20 +19,17 @@ class InventoryAdapter extends TypeAdapter<Inventory> {
     return Inventory(
       denominationCounts: (fields[0] as Map?)?.cast<String, int>(),
       lastUpdated: fields[1] as DateTime?,
-      groupId: fields[2] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Inventory obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(2)
       ..writeByte(0)
       ..write(obj.denominationCounts)
       ..writeByte(1)
-      ..write(obj.lastUpdated)
-      ..writeByte(2)
-      ..write(obj.groupId);
+      ..write(obj.lastUpdated);
   }
 
   @override

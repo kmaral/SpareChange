@@ -10,15 +10,9 @@ class Inventory {
   @HiveField(1)
   final DateTime lastUpdated;
 
-  @HiveField(2)
-  final String groupId;
-
-  Inventory({
-    Map<String, int>? denominationCounts,
-    DateTime? lastUpdated,
-    required this.groupId,
-  }) : denominationCounts = denominationCounts ?? {},
-       lastUpdated = lastUpdated ?? DateTime.now();
+  Inventory({Map<String, int>? denominationCounts, DateTime? lastUpdated})
+    : denominationCounts = denominationCounts ?? {},
+      lastUpdated = lastUpdated ?? DateTime.now();
 
   // Get count for a specific denomination ID
   int getCount(String denominationId) {
@@ -33,11 +27,7 @@ class Inventory {
     } else {
       newCounts[denominationId] = count;
     }
-    return Inventory(
-      denominationCounts: newCounts,
-      lastUpdated: DateTime.now(),
-      groupId: groupId,
-    );
+    return Inventory(denominationCounts: newCounts, lastUpdated: DateTime.now());
   }
 
   // Add to count for a specific denomination ID
@@ -63,50 +53,16 @@ class Inventory {
     return total;
   }
 
-  // Convert to JSON for Firestore
-  Map<String, dynamic> toJson() {
-    return {
-      'denominationCounts': denominationCounts,
-      'lastUpdated': lastUpdated.toIso8601String(),
-      'groupId': groupId,
-    };
-  }
-
-  // Create from Firestore document
-  factory Inventory.fromJson(Map<String, dynamic> json) {
-    final countsMap = json['denominationCounts'] as Map<String, dynamic>?;
-    final counts =
-        countsMap?.map((key, value) => MapEntry(key, value as int)) ?? {};
-    final groupId = json['groupId'] as String?;
-
-    if (groupId == null || groupId.isEmpty) {
-      throw ArgumentError('Inventory must have a valid groupId');
-    }
-
-    return Inventory(
-      denominationCounts: counts,
-      lastUpdated: json['lastUpdated'] != null
-          ? DateTime.parse(json['lastUpdated'] as String)
-          : DateTime.now(),
-      groupId: groupId,
-    );
-  }
-
   // Create a copy with updated fields
-  Inventory copyWith({
-    Map<String, int>? denominationCounts,
-    DateTime? lastUpdated,
-    String? groupId,
-  }) {
+  Inventory copyWith({Map<String, int>? denominationCounts, DateTime? lastUpdated}) {
     return Inventory(
       denominationCounts: denominationCounts ?? this.denominationCounts,
       lastUpdated: lastUpdated ?? this.lastUpdated,
-      groupId: groupId ?? this.groupId,
     );
   }
 
   @override
   String toString() {
-    return 'Inventory(counts: ${denominationCounts.length} denominations, lastUpdated: $lastUpdated, groupId: $groupId)';
+    return 'Inventory(counts: ${denominationCounts.length} denominations, lastUpdated: $lastUpdated)';
   }
 }

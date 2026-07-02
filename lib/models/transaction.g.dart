@@ -18,8 +18,6 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
     };
     return CurrencyTransaction(
       id: fields[0] as String,
-      userId: fields[1] as String,
-      userName: fields[2] as String,
       denominationValue: fields[3] as double,
       denominationId: fields[11] as String,
       quantity: fields[4] as int,
@@ -28,21 +26,15 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
       reason: fields[7] as String?,
       timestamp: fields[8] as DateTime?,
       lastModified: fields[9] as DateTime?,
-      syncStatus: fields[10] as SyncStatus,
-      groupId: fields[12] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, CurrencyTransaction obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.userId)
-      ..writeByte(2)
-      ..write(obj.userName)
       ..writeByte(3)
       ..write(obj.denominationValue)
       ..writeByte(11)
@@ -58,11 +50,7 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
       ..writeByte(8)
       ..write(obj.timestamp)
       ..writeByte(9)
-      ..write(obj.lastModified)
-      ..writeByte(10)
-      ..write(obj.syncStatus)
-      ..writeByte(12)
-      ..write(obj.groupId);
+      ..write(obj.lastModified);
   }
 
   @override
@@ -111,50 +99,6 @@ class TransactionTypeAdapter extends TypeAdapter<TransactionType> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is TransactionTypeAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
-class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
-  @override
-  final int typeId = 5;
-
-  @override
-  SyncStatus read(BinaryReader reader) {
-    switch (reader.readByte()) {
-      case 0:
-        return SyncStatus.pending;
-      case 1:
-        return SyncStatus.synced;
-      case 2:
-        return SyncStatus.failed;
-      default:
-        return SyncStatus.pending;
-    }
-  }
-
-  @override
-  void write(BinaryWriter writer, SyncStatus obj) {
-    switch (obj) {
-      case SyncStatus.pending:
-        writer.writeByte(0);
-        break;
-      case SyncStatus.synced:
-        writer.writeByte(1);
-        break;
-      case SyncStatus.failed:
-        writer.writeByte(2);
-        break;
-    }
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SyncStatusAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

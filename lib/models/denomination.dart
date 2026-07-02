@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 
 part 'denomination.g.dart';
@@ -20,9 +19,6 @@ class Denomination {
   @HiveField(4)
   final DateTime createdAt;
 
-  @HiveField(5)
-  final String groupId;
-
   @HiveField(6)
   final bool isAutoCreated;
 
@@ -32,42 +28,8 @@ class Denomination {
     required this.type,
     this.isActive = true,
     DateTime? createdAt,
-    required this.groupId,
     this.isAutoCreated = false,
   }) : createdAt = createdAt ?? DateTime.now();
-
-  // Convert to JSON for Firestore
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'value': value,
-      'type': type.toString().split('.').last,
-      'isActive': isActive,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'groupId': groupId,
-      'isAutoCreated': isAutoCreated,
-    };
-  }
-
-  // Create from Firestore document
-  factory Denomination.fromJson(Map<String, dynamic> json) {
-    final groupId = json['groupId'] as String?;
-    if (groupId == null || groupId.isEmpty) {
-      throw ArgumentError('Denomination must have a valid groupId');
-    }
-
-    return Denomination(
-      id: json['id'] as String,
-      value: (json['value'] as num).toDouble(),
-      type: DenominationType.values.firstWhere(
-        (e) => e.toString().split('.').last == json['type'],
-      ),
-      isActive: json['isActive'] as bool? ?? true,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      groupId: groupId,
-      isAutoCreated: json['isAutoCreated'] as bool? ?? false,
-    );
-  }
 
   // Create a copy with updated fields
   Denomination copyWith({
@@ -76,7 +38,6 @@ class Denomination {
     DenominationType? type,
     bool? isActive,
     DateTime? createdAt,
-    String? groupId,
     bool? isAutoCreated,
   }) {
     return Denomination(
@@ -85,7 +46,6 @@ class Denomination {
       type: type ?? this.type,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
-      groupId: groupId ?? this.groupId,
       isAutoCreated: isAutoCreated ?? this.isAutoCreated,
     );
   }
