@@ -8,169 +8,205 @@ import '../models/denomination.dart';
 import '../models/user.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
-  final CurrencyTransaction transaction;
+  final String transactionId;
 
-  const TransactionDetailScreen({super.key, required this.transaction});
+  const TransactionDetailScreen({super.key, required this.transactionId});
 
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
-    final provider = Provider.of<AppProvider>(context, listen: false);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transaction Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _showEditDialog(context),
+    return Consumer<AppProvider>(
+      builder: (context, provider, child) {
+        // Find the current transaction from the provider's transaction list
+        final transaction = provider.transactions.firstWhere(
+          (t) => t.id == transactionId,
+          orElse: () {
+            // Transaction was deleted, pop the screen
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+            // Return a dummy transaction to avoid null issues
+            return CurrencyTransaction(
+              id: transactionId,
+              userId: '',
+              userName: '',
+              denominationValue: 0,
+              denominationId: '',
+              quantity: 0,
+              transactionType: TransactionType.added,
+              totalAmount: 0,
+              groupId: '',
+            );
+          },
+        );
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Transaction Details'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _showEditDialog(context, transaction),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _showDeleteDialog(context, transaction),
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => _showDeleteDialog(context),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Transaction type card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor:
-                        transaction.transactionType == TransactionType.added
-                        ? Colors.green
-                        : Colors.red,
-                    child: Icon(
-                      transaction.transactionType == TransactionType.added
-                          ? Icons.add
-                          : Icons.remove,
-                      size: 48,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
-                    '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color:
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Transaction type card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor:
+                            transaction.transactionType == TransactionType.added
+                            ? Colors.green
+                            : Colors.red,
+                        child: Icon(
                           transaction.transactionType == TransactionType.added
-                          ? Colors.green
-                          : Colors.red,
-                    ),
+                              ? Icons.add
+                              : Icons.remove,
+                          size: 48,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
+                        '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              transaction.transactionType ==
+                                  TransactionType.added
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        transaction.transactionType == TransactionType.added
+                            ? 'Money Added'
+                            : 'Money Taken',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    transaction.transactionType == TransactionType.added
-                        ? 'Money Added'
-                        : 'Money Taken',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          // Details card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DetailRow(
-                    icon: Icons.person,
-                    label: 'User',
-                    value: transaction.userName,
+              // Details card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DetailRow(
+                        icon: Icons.person,
+                        label: 'User',
+                        value: transaction.userName,
+                      ),
+                      const Divider(),
+                      _DetailRow(
+                        icon: Icons.monetization_on,
+                        label: 'Denomination',
+                        value: transaction.displayDenominationWithCurrency(
+                          provider.currencySymbol,
+                          formatter: provider.formatNumber,
+                        ),
+                      ),
+                      const Divider(),
+                      _DetailRow(
+                        icon: Icons.format_list_numbered,
+                        label: 'Quantity',
+                        value: '${transaction.quantity}',
+                      ),
+                      const Divider(),
+                      _DetailRow(
+                        icon: Icons.calculate,
+                        label: 'Total Amount',
+                        value: transaction.displayTotalAmountWithCurrency(
+                          provider.currencySymbol,
+                          formatter: provider.formatNumber,
+                        ),
+                      ),
+                      const Divider(),
+                      _DetailRow(
+                        icon: Icons.calendar_today,
+                        label: 'Date & Time',
+                        value: dateFormat.format(transaction.timestamp),
+                      ),
+                      if (transaction.reason != null &&
+                          transaction.reason!.isNotEmpty) ...[
+                        const Divider(),
+                        _DetailRow(
+                          icon: Icons.notes,
+                          label: 'Reason',
+                          value: transaction.reason!,
+                        ),
+                      ],
+                      if (transaction.lastModified !=
+                          transaction.timestamp) ...[
+                        const Divider(),
+                        _DetailRow(
+                          icon: Icons.edit,
+                          label: 'Last Modified',
+                          value: dateFormat.format(transaction.lastModified),
+                        ),
+                      ],
+                      const Divider(),
+                      _DetailRow(
+                        icon: Icons.sync,
+                        label: 'Sync Status',
+                        value: transaction.syncStatus
+                            .toString()
+                            .split('.')
+                            .last
+                            .toUpperCase(),
+                        valueColor: transaction.syncStatus == SyncStatus.synced
+                            ? Colors.green
+                            : transaction.syncStatus == SyncStatus.failed
+                            ? Colors.red
+                            : Colors.orange,
+                      ),
+                    ],
                   ),
-                  const Divider(),
-                  _DetailRow(
-                    icon: Icons.monetization_on,
-                    label: 'Denomination',
-                    value: transaction.displayDenominationWithCurrency(
-                      provider.currencySymbol,
-                      formatter: provider.formatNumber,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    icon: Icons.format_list_numbered,
-                    label: 'Quantity',
-                    value: '${transaction.quantity}',
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    icon: Icons.calculate,
-                    label: 'Total Amount',
-                    value: transaction.displayTotalAmountWithCurrency(
-                      provider.currencySymbol,
-                      formatter: provider.formatNumber,
-                    ),
-                  ),
-                  const Divider(),
-                  _DetailRow(
-                    icon: Icons.calendar_today,
-                    label: 'Date & Time',
-                    value: dateFormat.format(transaction.timestamp),
-                  ),
-                  if (transaction.reason != null &&
-                      transaction.reason!.isNotEmpty) ...[
-                    const Divider(),
-                    _DetailRow(
-                      icon: Icons.notes,
-                      label: 'Reason',
-                      value: transaction.reason!,
-                    ),
-                  ],
-                  if (transaction.lastModified != transaction.timestamp) ...[
-                    const Divider(),
-                    _DetailRow(
-                      icon: Icons.edit,
-                      label: 'Last Modified',
-                      value: dateFormat.format(transaction.lastModified),
-                    ),
-                  ],
-                  const Divider(),
-                  _DetailRow(
-                    icon: Icons.sync,
-                    label: 'Sync Status',
-                    value: transaction.syncStatus
-                        .toString()
-                        .split('.')
-                        .last
-                        .toUpperCase(),
-                    valueColor: transaction.syncStatus == SyncStatus.synced
-                        ? Colors.green
-                        : transaction.syncStatus == SyncStatus.failed
-                        ? Colors.red
-                        : Colors.orange,
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _showEditDialog(BuildContext context) {
+  void _showEditDialog(BuildContext context, CurrencyTransaction transaction) {
     showDialog(
       context: context,
       builder: (context) => _EditTransactionDialog(transaction: transaction),
     );
   }
 
-  void _showDeleteDialog(BuildContext context) async {
+  void _showDeleteDialog(
+    BuildContext context,
+    CurrencyTransaction transaction,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -451,8 +487,7 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
                   );
 
                   if (context.mounted) {
-                    Navigator.pop(context); // Close edit dialog
-                    Navigator.pop(context); // Close detail screen
+                    Navigator.pop(context); // Close edit dialog only
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Transaction updated successfully'),

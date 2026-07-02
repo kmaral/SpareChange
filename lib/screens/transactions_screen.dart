@@ -348,8 +348,9 @@ class _TransactionsList extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          TransactionDetailScreen(transaction: transaction),
+                      builder: (context) => TransactionDetailScreen(
+                        transactionId: transaction.id,
+                      ),
                     ),
                   );
                 },

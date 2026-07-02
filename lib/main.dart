@@ -12,6 +12,7 @@ import 'providers/app_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/group_setup_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/animated_splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -130,8 +131,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return AnimatedSplashScreen(
+            child: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
           );
         }
 
@@ -161,8 +164,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             future: AuthService().getUserGroup(),
             builder: (context, groupSnapshot) {
               if (groupSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                return AnimatedSplashScreen(
+                  child: const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  ),
                 );
               }
 

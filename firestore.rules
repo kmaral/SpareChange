@@ -78,10 +78,13 @@ service cloud.firestore {
       // Allow updates if:
       // 1. User is already a member (for admin operations)
       // 2. User is adding themselves to the members array (for joining)
+      // 3. User is removing themselves from the members array (for leaving/deleting account)
       allow update: if isAuthenticated() && 
         (belongsToGroup(groupId) || 
          (request.resource.data.members.hasAny([request.auth.uid]) && 
-          !resource.data.members.hasAny([request.auth.uid])));
+          !resource.data.members.hasAny([request.auth.uid])) ||
+         (!request.resource.data.members.hasAny([request.auth.uid]) &&
+          resource.data.members.hasAny([request.auth.uid])));
       
       match /members/{userId} {
         allow read: if isAuthenticated() && belongsToGroup(groupId);

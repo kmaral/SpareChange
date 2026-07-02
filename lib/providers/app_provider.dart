@@ -639,6 +639,11 @@ class AppProvider with ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
+      print('AppProvider: Updating transaction ${transaction.id}');
+      print(
+        'AppProvider: Old quantity: ${transaction.quantity}, New quantity: $quantity',
+      );
+
       final updated = transaction.copyWith(
         userId: user.id,
         userName: user.name,
@@ -653,16 +658,25 @@ class AppProvider with ChangeNotifier {
 
       if (_syncService.isOnline) {
         await _firestoreService.updateTransaction(updated);
-        // Recalculate inventory after edit
-        await _firestoreService.recalculateInventoryFromTransactions(
-          groupId: _groupId!,
-        );
+        print('AppProvider: Transaction updated in Firestore');
+
+        // Recalculate inventory in background (don't await to avoid blocking UI)
+        _firestoreService
+            .recalculateInventoryFromTransactions(groupId: _groupId!)
+            .then((_) {
+              print('AppProvider: Inventory recalculated in background');
+              // The inventory stream will automatically update _inventory
+            })
+            .catchError((e) {
+              print('AppProvider: Error recalculating inventory: $e');
+            });
       } else {
         _setError('Cannot edit transaction while offline');
       }
 
       _clearError();
     } catch (e) {
+      print('AppProvider: Error updating transaction: $e');
       _setError('Failed to update transaction: $e');
     } finally {
       _setLoading(false);
@@ -674,10 +688,15 @@ class AppProvider with ChangeNotifier {
     try {
       if (_syncService.isOnline) {
         await _firestoreService.deleteTransaction(transaction.id);
-        // Recalculate inventory after deletion
-        await _firestoreService.recalculateInventoryFromTransactions(
-          groupId: _groupId!,
-        );
+        // Recalculate inventory in background (don't await to avoid blocking UI)
+        _firestoreService
+            .recalculateInventoryFromTransactions(groupId: _groupId!)
+            .then((_) {
+              print('AppProvider: Inventory recalculated after deletion');
+            })
+            .catchError((e) {
+              print('AppProvider: Error recalculating inventory: $e');
+            });
       } else {
         _setError('Cannot delete transaction while offline');
       }
@@ -700,21 +719,46 @@ class AppProvider with ChangeNotifier {
         return false;
       }
 
+      await _ensureGroupIdLoaded();
+
+      print('AppProvider: Deleting all transactions for groupId: $_groupId');
+
+      // Get ALL transactions for the group (not just the filtered local list)
+      final allTransactions = await _firestoreService.getAllTransactions(
+        groupId: _groupId!,
+      );
+
+      print(
+        'AppProvider: Found ${allTransactions.length} transactions to delete',
+      );
+
       // Delete all transactions
-      for (var transaction in _transactions) {
+      for (var transaction in allTransactions) {
         await _firestoreService.deleteTransaction(transaction.id);
       }
 
+      print('AppProvider: All transactions deleted, resetting inventory');
+
       // Reset inventory to zero with groupId
+      final emptyInventory = Inventory(groupId: _groupId!);
       await _firestoreService.updateInventory(
-        Inventory(groupId: _groupId!),
+        emptyInventory,
         groupId: _groupId!,
       );
+
+      print(
+        'AppProvider: Empty inventory updated: ${emptyInventory.denominationCounts}',
+      );
+
+      // Force refresh local inventory to ensure UI updates
+      _inventory = emptyInventory;
+      notifyListeners();
 
       _clearError();
       _setLoading(false);
       return true;
     } catch (e) {
+      print('AppProvider: Error deleting all transactions: $e');
       _setError('Failed to delete all transactions: $e');
       _setLoading(false);
       return false;
@@ -775,8 +819,12 @@ class AppProvider with ChangeNotifier {
 
   double getTotalBalance() {
     final denominationValues = {for (var d in _denominations) d.id: d.value};
-    return (_inventory ?? Inventory(groupId: _groupId ?? 'unknown'))
+    final total = (_inventory ?? Inventory(groupId: _groupId ?? 'unknown'))
         .calculateTotalValue(denominationValues);
+    print('AppProvider: getTotalBalance() = $total');
+    print('AppProvider: Inventory counts: ${_inventory?.denominationCounts}');
+    print('AppProvider: Denomination values map: $denominationValues');
+    return total;
   }
 
   // Get total balance for the currently selected user
@@ -797,12 +845,29 @@ class AppProvider with ChangeNotifier {
   Map<Denomination, int> getDenominationBreakdown() {
     final breakdown = <Denomination, int>{};
     final inventory = _inventory ?? Inventory(groupId: _groupId ?? 'unknown');
+
+    print('AppProvider: getDenominationBreakdown()');
+    print('AppProvider: Inventory counts: ${inventory.denominationCounts}');
+    print('AppProvider: Total denominations: ${_denominations.length}');
+
     for (final denomination in _denominations) {
       final count = inventory.getCount(denomination.id);
+      print(
+        'AppProvider: Denom ${denomination.value} (${denomination.id}): count = $count, isActive = ${denomination.isActive}',
+      );
       if (count > 0) {
         breakdown[denomination] = count;
       }
     }
+
+    // Calculate total from breakdown for verification
+    double breakdownTotal = 0;
+    breakdown.forEach((denom, count) {
+      breakdownTotal += denom.value * count;
+    });
+    print('AppProvider: Breakdown total: $breakdownTotal');
+    print('AppProvider: Breakdown size: ${breakdown.length} items');
+
     return breakdown;
   }
 

@@ -157,6 +157,7 @@ class FirestoreService {
 
   Future<List<CurrencyTransaction>> getAllTransactions({
     required String groupId,
+    bool forceServerFetch = false,
   }) async {
     if (groupId.isEmpty) {
       throw ArgumentError('groupId cannot be empty');
@@ -166,7 +167,10 @@ class FirestoreService {
         .where('groupId', isEqualTo: groupId)
         .orderBy('timestamp', descending: false);
 
-    final snapshot = await query.get();
+    // Use GetOptions to force server fetch if needed (avoids cache inconsistency)
+    final snapshot = forceServerFetch
+        ? await query.get(const GetOptions(source: Source.server))
+        : await query.get();
     return snapshot.docs
         .map(
           (doc) =>
@@ -245,8 +249,17 @@ class FirestoreService {
       throw ArgumentError('groupId cannot be empty');
     }
 
-    // Get all transactions for this group
-    final allTransactions = await getAllTransactions(groupId: groupId);
+    print('FirestoreService: Recalculating inventory for groupId: $groupId');
+
+    // Get all transactions for this group (force server fetch to avoid cache inconsistency)
+    final allTransactions = await getAllTransactions(
+      groupId: groupId,
+      forceServerFetch: true,
+    );
+
+    print(
+      'FirestoreService: Found ${allTransactions.length} transactions for recalculation',
+    );
 
     // Calculate counts for each denomination ID
     final Map<String, int> denominationCounts = {};
@@ -278,11 +291,17 @@ class FirestoreService {
           denominationCounts[denominationId] =
               currentCount - transaction.quantity;
         }
+
+        print(
+          'FirestoreService: DenomId: $denominationId, Transaction ${transaction.transactionType}, Qty: ${transaction.quantity}, Running count: ${denominationCounts[denominationId]}',
+        );
       }
     }
 
     // Remove zero or negative counts
     denominationCounts.removeWhere((key, value) => value <= 0);
+
+    print('FirestoreService: Final inventory counts: $denominationCounts');
 
     // Update inventory
     final inventory = Inventory(
@@ -292,6 +311,7 @@ class FirestoreService {
     );
 
     await updateInventory(inventory, groupId: groupId);
+    print('FirestoreService: Inventory updated in Firestore');
   }
 
   // ===== BATCH OPERATIONS =====
