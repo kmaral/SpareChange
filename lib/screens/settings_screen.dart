@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import 'currency_selection_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -107,6 +108,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
+          // Currency Settings
+          _SettingsSection(
+            title: 'Currency',
+            icon: Icons.currency_exchange,
+            children: [
+              Consumer<AppProvider>(
+                builder: (context, provider, _) => ListTile(
+                  leading: Icon(provider.currencyIconData),
+                  title: const Text('Currency'),
+                  subtitle: Text(
+                    '${provider.currencyName} (${provider.currency}) · ${provider.currencySymbol}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CurrencySelectionScreen(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+
           // Data Section
           _SettingsSection(
             title: 'Data',
@@ -138,7 +164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 leading: const Icon(Icons.code),
                 title: const Text('Build Number'),
-                subtitle: const Text('8'),
+                subtitle: const Text('9'),
               ),
             ],
           ),

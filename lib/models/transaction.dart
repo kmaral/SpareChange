@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'currency_info.dart';
 
 part 'transaction.g.dart';
 
@@ -31,6 +32,11 @@ class CurrencyTransaction {
   @HiveField(9)
   final DateTime lastModified;
 
+  // Currency code active when this transaction was recorded (e.g. 'INR', 'USD').
+  // Null for transactions created before multi-currency support existed.
+  @HiveField(12)
+  final String? currencyCode;
+
   CurrencyTransaction({
     required this.id,
     required this.denominationValue,
@@ -41,6 +47,7 @@ class CurrencyTransaction {
     this.reason,
     DateTime? timestamp,
     DateTime? lastModified,
+    this.currencyCode,
   }) : timestamp = timestamp ?? DateTime.now(),
        lastModified = lastModified ?? DateTime.now();
 
@@ -55,6 +62,7 @@ class CurrencyTransaction {
     String? reason,
     DateTime? timestamp,
     DateTime? lastModified,
+    String? currencyCode,
   }) {
     return CurrencyTransaction(
       id: id ?? this.id,
@@ -66,8 +74,14 @@ class CurrencyTransaction {
       reason: reason ?? this.reason,
       timestamp: timestamp ?? this.timestamp,
       lastModified: lastModified ?? this.lastModified,
+      currencyCode: currencyCode ?? this.currencyCode,
     );
   }
+
+  // Currency symbol this transaction was recorded in, falling back to
+  // [fallbackCode] for transactions saved before multi-currency support existed.
+  String currencySymbolOr(String fallbackCode) =>
+      currencyInfoForCode(currencyCode ?? fallbackCode).symbol;
 
   // Display denomination value with currency symbol
   String get displayDenomination {

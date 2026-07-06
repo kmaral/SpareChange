@@ -26,13 +26,14 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
       reason: fields[7] as String?,
       timestamp: fields[8] as DateTime?,
       lastModified: fields[9] as DateTime?,
+      currencyCode: fields[12] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CurrencyTransaction obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(3)
@@ -50,7 +51,9 @@ class CurrencyTransactionAdapter extends TypeAdapter<CurrencyTransaction> {
       ..writeByte(8)
       ..write(obj.timestamp)
       ..writeByte(9)
-      ..write(obj.lastModified);
+      ..write(obj.lastModified)
+      ..writeByte(12)
+      ..write(obj.currencyCode);
   }
 
   @override

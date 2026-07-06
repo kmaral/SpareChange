@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../models/currency_info.dart';
 import '../models/denomination.dart';
 import '../models/transaction.dart';
 import '../models/inventory.dart';
@@ -70,19 +71,10 @@ class AppProvider with ChangeNotifier {
   String get currency => _currency;
 
   // Get currency symbol
-  String get currencySymbol {
-    switch (_currency) {
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      case 'INR':
-      default:
-        return '₹';
-    }
-  }
+  String get currencySymbol => currencyInfoForCode(_currency).symbol;
+
+  // Get currency display name
+  String get currencyName => currencyInfoForCode(_currency).name;
 
   // Get currency icon
   IconData get currencyIconData {
@@ -94,8 +86,14 @@ class AppProvider with ChangeNotifier {
       case 'GBP':
         return Icons.currency_pound;
       case 'INR':
-      default:
         return Icons.currency_rupee;
+      case 'JPY':
+      case 'CNY':
+        return Icons.currency_yen;
+      case 'RUB':
+        return Icons.currency_ruble;
+      default:
+        return Icons.payments;
     }
   }
 
@@ -207,7 +205,7 @@ class AppProvider with ChangeNotifier {
       );
       if (exists) {
         final typeName = type == DenominationType.coin ? 'coin' : 'note';
-        _setError('$typeName with value ₹$value already exists');
+        _setError('$typeName with value $currencySymbol$value already exists');
         return;
       }
 
@@ -284,6 +282,7 @@ class AppProvider with ChangeNotifier {
         reason: reason,
         timestamp: timestamp ?? DateTime.now(),
         lastModified: DateTime.now(),
+        currencyCode: _currency,
       );
 
       _inventory = await _localStorageService.addTransactionAndUpdateInventory(
@@ -315,6 +314,7 @@ class AppProvider with ChangeNotifier {
         totalAmount: denomination.value * quantity,
         reason: reason,
         lastModified: DateTime.now(),
+        currencyCode: _currency,
       );
 
       await _localStorageService.updateTransaction(updated);

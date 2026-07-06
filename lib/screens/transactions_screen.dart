@@ -219,6 +219,9 @@ class _TransactionsList extends StatelessWidget {
           itemBuilder: (context, index) {
             final transaction = transactions[index];
             final dateFormat = DateFormat('MMM dd, yyyy hh:mm a');
+            final txCurrencySymbol = transaction.currencySymbolOr(
+              provider.currency,
+            );
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -243,7 +246,7 @@ class _TransactionsList extends StatelessWidget {
                 ),
                 title: Text(
                   '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
-                  '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
+                  '${transaction.displayTotalAmountWithCurrency(txCurrencySymbol, formatter: provider.formatNumber)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -258,7 +261,7 @@ class _TransactionsList extends StatelessWidget {
                   children: [
                     const SizedBox(height: 4),
                     Text(
-                      '${transaction.displayDenominationWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)} × ${transaction.quantity}',
+                      '${transaction.displayDenominationWithCurrency(txCurrencySymbol, formatter: provider.formatNumber)} × ${transaction.quantity}',
                       style: const TextStyle(fontSize: 15),
                     ),
                     const SizedBox(height: 2),

@@ -39,6 +39,10 @@ class TransactionDetailScreen extends StatelessWidget {
           },
         );
 
+        final txCurrencySymbol = transaction.currencySymbolOr(
+          provider.currency,
+        );
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Transaction Details'),
@@ -79,7 +83,7 @@ class TransactionDetailScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         '${transaction.transactionType == TransactionType.added ? '+' : '-'}'
-                        '${transaction.displayTotalAmountWithCurrency(provider.currencySymbol, formatter: provider.formatNumber)}',
+                        '${transaction.displayTotalAmountWithCurrency(txCurrencySymbol, formatter: provider.formatNumber)}',
                         style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
@@ -117,7 +121,7 @@ class TransactionDetailScreen extends StatelessWidget {
                         icon: Icons.monetization_on,
                         label: 'Denomination',
                         value: transaction.displayDenominationWithCurrency(
-                          provider.currencySymbol,
+                          txCurrencySymbol,
                           formatter: provider.formatNumber,
                         ),
                       ),
@@ -132,7 +136,7 @@ class TransactionDetailScreen extends StatelessWidget {
                         icon: Icons.calculate,
                         label: 'Total Amount',
                         value: transaction.displayTotalAmountWithCurrency(
-                          provider.currencySymbol,
+                          txCurrencySymbol,
                           formatter: provider.formatNumber,
                         ),
                       ),

@@ -97,7 +97,9 @@ class LocalStorageService {
   // Re-derive inventory counts from all stored transactions
   Future<Inventory> recalculateInventoryFromTransactions() async {
     var inventory = Inventory();
-    for (final transaction in _transactionsBox.values) {
+    final orderedTransactions = _transactionsBox.values.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    for (final transaction in orderedTransactions) {
       inventory = transaction.transactionType == TransactionType.added
           ? inventory.addCount(transaction.denominationId, transaction.quantity)
           : inventory.subtractCount(
